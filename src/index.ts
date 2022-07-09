@@ -1,9 +1,10 @@
 import { AxiosError, AxiosRequestConfig, AxiosResponse, Cancel } from "axios";
-import { DispatchFunc, inject } from "light-my-request";
+import { DispatchFunc, inject, InjectOptions } from "light-my-request";
 import url from "url";
 import { buildFullPath } from "./axios-core";
 import { buildURL } from "./axios-helpers";
 import * as utils from "./axios-utils";
+import http from "http";
 
 const isHttps = /https:?/;
 
@@ -31,8 +32,7 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc) 
         rejectPromise(value);
       }
       const data = config.data;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const headers = config.headers!;
+      const headers = config.headers ?? {};
       const headerNames: Record<string, string> = {};
 
       Object.keys(headers).forEach(function storeLowerName(name) {
@@ -85,18 +85,27 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc) 
 
       let builtUrl;
       try {
+        // TODO We need the path and params separated
         builtUrl = buildURL(parsed.path ?? "", config.params, config.paramsSerializer).replace(/^\?/, '');
       } catch (err) {
-        // TODO
-        // const customErr = new Error(err.message);
-        // customErr.config = config;
-        // customErr.url = config.url;
-        // customErr.exists = true;
-        // reject(customErr);
+        const customErr: Error & {config?: AxiosRequestConfig, url?: string, exists?: boolean} = new Error((err as Error).message);
+        customErr.config = config;
+        customErr.url = config.url;
+        customErr.exists = true;
+        reject(customErr);
+        return;
       }
 
       inject(dispatchFunc, {
-        url: builtUrl,
+        url: {
+          pathname: parsed.path ?? "",
+          hostname: parsed.hostname ?? undefined,
+          port: parsed.port ?? undefined,
+          protocol: protocol,
+          // query: query,
+        },
+        method: config.method as InjectOptions['method'],
+        headers: headers as http.OutgoingHttpHeaders,
         payload: config.data,
       }, (err, response) => {
         if (err) {

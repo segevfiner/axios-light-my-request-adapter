@@ -26,7 +26,7 @@ export function combineURLs(baseURL: string, relativeURL: string): string {
     : baseURL;
 }
 
-function encode(val: string): string {
+function encode(val: string | number | boolean): string {
   return encodeURIComponent(val).
     replace(/%3A/gi, ':').
     replace(/%24/g, '$').
@@ -43,7 +43,7 @@ function encode(val: string): string {
  * @param {object} [params] The params to be appended
  * @returns {string} The formatted url
  */
-export function buildURL(url: string, params: object, paramsSerializer?: (params: unknown) => string): string {
+export function buildURL(url: string, params: Record<string, unknown>, paramsSerializer?: (params: unknown) => string): string {
   /*eslint no-param-reassign:0*/
   if (!params) {
     return url;
@@ -57,26 +57,28 @@ export function buildURL(url: string, params: object, paramsSerializer?: (params
   } else {
     const parts: string[] = [];
 
-    // utils.forEach(params, function serialize(val?: string | string[], key?: string) {
-    //   if (val === null || typeof val === 'undefined') {
-    //     return;
-    //   }
+    utils.forEach(params, function serialize(val, key) {
+      if (val === null || typeof val === 'undefined') {
+        return;
+      }
 
-    //   if (utils.isArray(val)) {
-    //     key = key + '[]';
-    //   } else {
-    //     val = [val];
-    //   }
+      if (utils.isArray(val)) {
+        key = key + '[]';
+      } else {
+        val = [val];
+      }
 
-    //   utils.forEach(val, function parseValue(v) {
-    //     if (utils.isDate(v)) {
-    //       v = v.toISOString();
-    //     } else if (utils.isObject(v)) {
-    //       v = JSON.stringify(v);
-    //     }
-    //     parts.push(encode(key) + '=' + encode(v));
-    //   });
-    // });
+      if (utils.isObject(val)) {
+        utils.forEach(val as Record<string, Date | object | string | number | boolean>, function parseValue(v) {
+          if (utils.isDate(v)) {
+            v = v.toISOString();
+          } else if (utils.isObject(v)) {
+            v = JSON.stringify(v);
+          }
+          parts.push(encode(key) + '=' + encode(v));
+        });
+      }
+    });
 
     serializedParams = parts.join('&');
   }

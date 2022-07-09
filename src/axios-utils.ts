@@ -39,6 +39,8 @@ export function isArray<T>(val: unknown): val is T[] {
   return val !== null && typeof val === 'object';
 }
 
+export const isDate = kindOfTest<Date>('Date');
+
 /**
  * Determine if a value is a Function
  *
@@ -82,3 +84,41 @@ export function isStream(val: unknown) {
  * @returns {boolean} True if value is a URLSearchParams object, otherwise false
  */
 export const isURLSearchParams = kindOfTest<URLSearchParams>('URLSearchParams');
+
+/**
+ * Iterate over an Array or an Object invoking a function for each item.
+ *
+ * If `obj` is an Array callback will be called passing
+ * the value, index, and complete array for each item.
+ *
+ * If 'obj' is an Object callback will be called passing
+ * the value, key, and complete object for each property.
+ *
+ * @param {Object|Array} obj The object to iterate
+ * @param {Function} fn The callback to invoke for each item
+ */
+export function forEach<T extends object>(obj: T | undefined , fn: (val: T[keyof T], key: keyof T, obj: T) => void) : void;
+export function forEach<T extends S[], S>(obj: T | undefined , fn: (val: S, key: number, obj: T) => void) : void;
+export function forEach<T extends object | S[], S>(obj: T | undefined, fn: ((val: T[keyof T], key: keyof T, obj: T) => void) | ((val: S, key: number, obj: T) => void)): void {
+  // Don't bother if no value provided
+  if (obj === null || typeof obj === 'undefined') {
+    return;
+  }
+
+  // Force an array if not already something iterable
+  if (typeof obj !== 'object') {
+    (fn as (val: S, key: number, obj: T) => void).call(null, obj, 0, obj);
+  } else if (isArray(obj)) {
+    // Iterate over array values
+    for (let i = 0, l = obj.length; i < l; i++) {
+      (fn as (val: S, key: number, obj: T) => void).call(null, obj[i], i, obj);
+    }
+  } else {
+    // Iterate over object keys
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        (fn as (val: T[keyof T], key: keyof T, obj: T) => void).call(null, obj[key], key, obj);
+      }
+    }
+  }
+}
