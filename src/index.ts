@@ -4,6 +4,7 @@ import { DispatchFunc, inject, InjectOptions } from "light-my-request";
 import { Readable } from "stream";
 import url from "url";
 import { buildFullPath, settle } from "./axios-core";
+import { axiosErrorFrom } from "./axios-error";
 import { buildParams } from "./axios-helpers";
 import * as utils from "./axios-utils";
 
@@ -79,7 +80,6 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
 
       let query;
       try {
-        // TODO We need the path and params separated
         query = buildParams(config.params, config.paramsSerializer).replace(/^\?/, '');
       } catch (err) {
         const customErr: Error & {config?: AxiosRequestConfig, url?: string, exists?: boolean} = new Error((err as Error).message);
@@ -118,8 +118,7 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
         if (aborted) return;
 
         if (err) {
-          // TODO AxiosError.from
-          reject(err);
+          reject(axiosErrorFrom(err, null, config, res.raw.req));
         }
 
         const response: AxiosResponse = {
@@ -149,9 +148,7 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
               response.data = responseData;
             }
           } catch (err) {
-            // TODO AxiosError.from
-            // reject(AxiosError.from(err, null, config, response.request, response));
-            reject(err);
+            reject(axiosErrorFrom(err as Error, null, config, response.request, response));
           }
           settle(resolve, reject, response);
         }
