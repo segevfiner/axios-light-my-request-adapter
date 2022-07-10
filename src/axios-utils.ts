@@ -1,4 +1,3 @@
-import FormData from 'form-data';
 import { Readable } from 'stream';
 
 const toString = Object.prototype.toString;
@@ -60,6 +59,14 @@ export const isDate = kindOfTest<Date>('Date');
  */
 export function isStream(val: unknown) {
   return isObject(val) && isFunction((val as {pipe: Readable['pipe']}).pipe);
+}
+
+declare interface Headers {
+  [key: string]: string | number | boolean;
+}
+
+declare class FormData {
+  getHeaders(userHeaders?: Headers): Headers;
 }
 
 /**
