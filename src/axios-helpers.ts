@@ -36,17 +36,16 @@ function encode(val: string | number | boolean): string {
     replace(/%5D/gi, ']');
 }
 
+// Based buildURL from axios/helpers
 /**
- * Build a URL by appending params to the end
+ * Build URL params
  *
- * @param {string} url The base of the url (e.g., http://www.google.com)
  * @param {object} [params] The params to be appended
  * @returns {string} The formatted url
  */
-export function buildURL(url: string, params: Record<string, unknown>, paramsSerializer?: (params: unknown) => string): string {
-  /*eslint no-param-reassign:0*/
+export function buildParams(params: Record<string, unknown>, paramsSerializer?: (params: unknown) => string): string {
   if (!params) {
-    return url;
+    return '';
   }
 
   let serializedParams;
@@ -83,14 +82,5 @@ export function buildURL(url: string, params: Record<string, unknown>, paramsSer
     serializedParams = parts.join('&');
   }
 
-  if (serializedParams) {
-    const hashmarkIndex = url.indexOf('#');
-    if (hashmarkIndex !== -1) {
-      url = url.slice(0, hashmarkIndex);
-    }
-
-    url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
-  }
-
-  return url;
+  return serializedParams;
 }

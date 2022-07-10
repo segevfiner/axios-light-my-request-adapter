@@ -77,10 +77,10 @@ declare class FormData {
  */
  export function isFormData(thing: unknown): thing is FormData {
     const pattern = '[object FormData]';
-    return (
+    return thing != null && (
       (typeof FormData === 'function' && thing instanceof FormData) ||
       toString.call(thing) === pattern ||
-      (isFunction((thing as {toString: typeof toString}).toString) && (thing as {toString: typeof toString}).toString() === pattern)
+      (isFunction((thing as {toString?: typeof toString})?.toString) && (thing as {toString: typeof toString}).toString() === pattern)
     );
   }
 
@@ -128,4 +128,48 @@ export function forEach<T extends object | S[], S>(obj: T | undefined, fn: ((val
       }
     }
   }
+}
+
+/**
+ * Remove byte order marker. This catches EF BB BF (the UTF-8 BOM)
+ *
+ * @param {string} content with BOM
+ * @return {string} content value without BOM
+ */
+export function stripBOM(content: string): string {
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  return content;
+}
+
+/**
+ * Resolve object with deep prototype chain to a flat object
+ * @param {Object} sourceObj source object
+ * @param {Object} [destObj]
+ * @param {Function} [filter]
+ * @returns {Object}
+ */
+export function toFlatObject(sourceObj: Record<string, unknown>, destObj: Record<string, unknown>, filter: (sourceObj: Record<string, unknown>, destObj: Record<string, unknown>) => boolean): Record<string, unknown> {
+  let props;
+  let i;
+  let prop;
+  const merged: Record<string, unknown> = {};
+
+  destObj = destObj || {};
+
+  do {
+    props = Object.getOwnPropertyNames(sourceObj);
+    i = props.length;
+    while (i-- > 0) {
+      prop = props[i];
+      if (!merged[prop]) {
+        destObj[prop] = sourceObj[prop];
+        merged[prop] = true;
+      }
+    }
+    sourceObj = Object.getPrototypeOf(sourceObj);
+  } while (sourceObj && (!filter || filter(sourceObj, destObj)) && sourceObj !== Object.prototype);
+
+  return destObj;
 }

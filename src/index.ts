@@ -1,34 +1,31 @@
-import { AxiosError, AxiosRequestConfig, AxiosResponse, Cancel } from "axios";
-import { DispatchFunc, inject, InjectOptions } from "light-my-request";
-import url from "url";
-import { buildFullPath } from "./axios-core";
-import { buildURL } from "./axios-helpers";
-import * as utils from "./axios-utils";
+import { AxiosError, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, Cancel, CanceledError } from "axios";
 import http from "http";
+import { DispatchFunc, inject, InjectOptions } from "light-my-request";
+import { Readable } from "stream";
+import url from "url";
+import { buildFullPath, settle } from "./axios-core";
+import { buildParams } from "./axios-helpers";
+import * as utils from "./axios-utils";
 
-const isHttps = /https:?/;
-
-export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc) {
+export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, options: {server?: http.Server, remoteAddress?: string} = {}) {
   return function lightMyRequestAdapter<T = unknown>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
     return new Promise((resolvePromise, rejectPromise) => {
-      let onCanceled: () => void;
+      let onCanceled: (cancel?: MyCancel) => void;
       function done() {
         if (config.cancelToken) {
-          (config.cancelToken as unknown as CancelToken).unsubscribe(onCanceled);
+          (config.cancelToken as unknown as MyCancelToken).unsubscribe(onCanceled);
         }
 
         if (config.signal) {
           (config.signal as MyAbortSignal).removeEventListener("abort", onCanceled);
         }
       }
-      function resolve(value: AxiosResponse<T>) {
+      function resolve(value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>) {
         done();
         resolvePromise(value);
       }
-      let rejected = false;
       function reject(value: unknown) {
         done();
-        rejected = true;
         rejectPromise(value);
       }
       const data = config.data;
@@ -80,13 +77,10 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc) 
         headers.authorization = "Basic " + Buffer.from(auth).toString("base64");
       }
 
-      const isHttpsRequest = isHttps.test(protocol);
-      const agent = isHttpsRequest ? config.httpsAgent : config.httpAgent;
-
-      let builtUrl;
+      let query;
       try {
         // TODO We need the path and params separated
-        builtUrl = buildURL(parsed.path ?? "", config.params, config.paramsSerializer).replace(/^\?/, '');
+        query = buildParams(config.params, config.paramsSerializer).replace(/^\?/, '');
       } catch (err) {
         const customErr: Error & {config?: AxiosRequestConfig, url?: string, exists?: boolean} = new Error((err as Error).message);
         customErr.config = config;
@@ -96,29 +90,98 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc) 
         return;
       }
 
+      if (config.socketPath) {
+        reject(new Error("socketPath not supported"));
+        return;
+      }
+
+      if (config.proxy != null) {
+        reject(new Error("proxy not supported"));
+        return;
+      }
+
+      let aborted = false;
       inject(dispatchFunc, {
         url: {
           pathname: parsed.path ?? "",
+          protocol: protocol,
           hostname: parsed.hostname ?? undefined,
           port: parsed.port ?? undefined,
-          protocol: protocol,
-          // query: query,
+          query,
         },
-        method: config.method as InjectOptions['method'],
+        method: config.method?.toUpperCase() as InjectOptions['method'] | undefined,
         headers: headers as http.OutgoingHttpHeaders,
         payload: config.data,
-      }, (err, response) => {
+        server: options.server,
+        remoteAddress: options.remoteAddress,
+      }, (err, res) => {
+        if (aborted) return;
+
         if (err) {
+          // TODO AxiosError.from
           reject(err);
         }
+
+        const response: AxiosResponse = {
+          status: res.statusCode,
+          statusText: res.statusMessage,
+          headers: res.headers as AxiosResponseHeaders,
+          config: config,
+          request: res.raw.req,
+          data: undefined,
+        };
+
+        if (config.responseType === 'stream') {
+          const responseData = new Readable();
+          responseData.push(res.body);
+          responseData.push(null);
+          response.data = responseData;
+          settle(resolve, reject, response);
+        } else {
+          try {
+            if (config.responseType === 'arraybuffer') {
+              response.data = Buffer.from(res.body);
+            } else {
+              let responseData = res.body;
+              if (!config.responseEncoding || config.responseEncoding === 'utf8') {
+                responseData = utils.stripBOM(responseData);
+              }
+              response.data = responseData;
+            }
+          } catch (err) {
+            // TODO AxiosError.from
+            // reject(AxiosError.from(err, null, config, response.request, response));
+            reject(err);
+          }
+          settle(resolve, reject, response);
+        }
       });
+
+      if (config.cancelToken || config.signal) {
+        // Handle cancellation
+        onCanceled = function(cancel?: MyCancel) {
+          if (aborted) return;
+
+          aborted = true;
+          reject(!cancel || (cancel && cancel.type) ? new CanceledError() : cancel);
+        };
+
+        config.cancelToken && (config.cancelToken as unknown as MyCancelToken).subscribe(onCanceled);
+        if (config.signal) {
+          config.signal.aborted ? onCanceled() : (config.signal as MyAbortSignal).addEventListener('abort', onCanceled);
+        }
+      }
     });
   }
 }
 
-interface CancelToken {
-    subscribe(listener: (reason: Cancel) => void): void;
-    unsubscribe(listener: (reason: Cancel) => void): void;
+interface MyCancel extends Cancel {
+  type?: string;
+}
+
+interface MyCancelToken {
+    subscribe(listener: (reason: MyCancel) => void): void;
+    unsubscribe(listener: (reason: MyCancel) => void): void;
   }
 
 interface MyAbortSignal extends AbortSignal {
