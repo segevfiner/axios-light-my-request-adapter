@@ -1,11 +1,11 @@
-import { Readable } from 'stream';
+import { Readable } from "stream";
 
 const toString = Object.prototype.toString;
 
 // eslint-disable-next-line func-names
-const kindOf = (function(cache) {
+const kindOf = (function (cache) {
   // eslint-disable-next-line func-names
-  return function(thing: unknown) {
+  return function (thing: unknown) {
     const str = toString.call(thing);
     return cache[str] || (cache[str] = str.slice(8, -1).toLowerCase());
   };
@@ -34,11 +34,11 @@ export function isArray<T>(val: unknown): val is T[] {
  * @param {Object} val The value to test
  * @returns {boolean} True if value is an Object, otherwise false
  */
- export function isObject(val: unknown): val is object {
-  return val !== null && typeof val === 'object';
+export function isObject(val: unknown): val is object {
+  return val !== null && typeof val === "object";
 }
 
-export const isDate = kindOfTest<Date>('Date');
+export const isDate = kindOfTest<Date>("Date");
 
 /**
  * Determine if a value is a Function
@@ -46,9 +46,9 @@ export const isDate = kindOfTest<Date>('Date');
  * @param {Object} val The value to test
  * @returns {boolean} True if value is a Function, otherwise false
  */
- // eslint-disable-next-line @typescript-eslint/ban-types
- export function isFunction(val: unknown): val is Function {
-  return toString.call(val) === '[object Function]';
+// eslint-disable-next-line @typescript-eslint/ban-types
+export function isFunction(val: unknown): val is Function {
+  return toString.call(val) === "[object Function]";
 }
 
 /**
@@ -58,7 +58,7 @@ export const isDate = kindOfTest<Date>('Date');
  * @returns {boolean} True if value is a Stream, otherwise false
  */
 export function isStream(val: unknown) {
-  return isObject(val) && isFunction((val as {pipe: Readable['pipe']}).pipe);
+  return isObject(val) && isFunction((val as { pipe: Readable["pipe"] }).pipe);
 }
 
 declare interface Headers {
@@ -75,14 +75,16 @@ declare class FormData {
  * @param {Object} thing The value to test
  * @returns {boolean} True if value is an FormData, otherwise false
  */
- export function isFormData(thing: unknown): thing is FormData {
-    const pattern = '[object FormData]';
-    return thing != null && (
-      (typeof FormData === 'function' && thing instanceof FormData) ||
+export function isFormData(thing: unknown): thing is FormData {
+  const pattern = "[object FormData]";
+  return (
+    thing != null &&
+    ((typeof FormData === "function" && thing instanceof FormData) ||
       toString.call(thing) === pattern ||
-      (isFunction((thing as {toString?: typeof toString})?.toString) && (thing as {toString: typeof toString}).toString() === pattern)
-    );
-  }
+      (isFunction((thing as { toString?: typeof toString })?.toString) &&
+        (thing as { toString: typeof toString }).toString() === pattern))
+  );
+}
 
 /**
  * Determine if a value is a URLSearchParams object
@@ -90,7 +92,7 @@ declare class FormData {
  * @param {Object} val The value to test
  * @returns {boolean} True if value is a URLSearchParams object, otherwise false
  */
-export const isURLSearchParams = kindOfTest<URLSearchParams>('URLSearchParams');
+export const isURLSearchParams = kindOfTest<URLSearchParams>("URLSearchParams");
 
 /**
  * Iterate over an Array or an Object invoking a function for each item.
@@ -104,16 +106,27 @@ export const isURLSearchParams = kindOfTest<URLSearchParams>('URLSearchParams');
  * @param {Object|Array} obj The object to iterate
  * @param {Function} fn The callback to invoke for each item
  */
-export function forEach<T extends object>(obj: T | undefined , fn: (val: T[keyof T], key: keyof T, obj: T) => void) : void;
-export function forEach<T extends S[], S>(obj: T | undefined , fn: (val: S, key: number, obj: T) => void) : void;
-export function forEach<T extends object | S[], S>(obj: T | undefined, fn: ((val: T[keyof T], key: keyof T, obj: T) => void) | ((val: S, key: number, obj: T) => void)): void {
+export function forEach<T extends object>(
+  obj: T | undefined,
+  fn: (val: T[keyof T], key: keyof T, obj: T) => void
+): void;
+export function forEach<T extends S[], S>(
+  obj: T | undefined,
+  fn: (val: S, key: number, obj: T) => void
+): void;
+export function forEach<T extends object | S[], S>(
+  obj: T | undefined,
+  fn:
+    | ((val: T[keyof T], key: keyof T, obj: T) => void)
+    | ((val: S, key: number, obj: T) => void)
+): void {
   // Don't bother if no value provided
-  if (obj === null || typeof obj === 'undefined') {
+  if (obj === null || typeof obj === "undefined") {
     return;
   }
 
   // Force an array if not already something iterable
-  if (typeof obj !== 'object') {
+  if (typeof obj !== "object") {
     (fn as (val: S, key: number, obj: T) => void).call(null, obj, 0, obj);
   } else if (isArray(obj)) {
     // Iterate over array values
@@ -124,7 +137,12 @@ export function forEach<T extends object | S[], S>(obj: T | undefined, fn: ((val
     // Iterate over object keys
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        (fn as (val: T[keyof T], key: keyof T, obj: T) => void).call(null, obj[key], key, obj);
+        (fn as (val: T[keyof T], key: keyof T, obj: T) => void).call(
+          null,
+          obj[key],
+          key,
+          obj
+        );
       }
     }
   }
@@ -137,7 +155,7 @@ export function forEach<T extends object | S[], S>(obj: T | undefined, fn: ((val
  * @return {string} content value without BOM
  */
 export function stripBOM(content: string): string {
-  if (content.charCodeAt(0) === 0xFEFF) {
+  if (content.charCodeAt(0) === 0xfeff) {
     content = content.slice(1);
   }
   return content;
@@ -150,7 +168,14 @@ export function stripBOM(content: string): string {
  * @param {Function} [filter]
  * @returns {Object}
  */
-export function toFlatObject(sourceObj: Record<string, unknown>, destObj: Record<string, unknown>, filter: (sourceObj: Record<string, unknown>, destObj: Record<string, unknown>) => boolean): Record<string, unknown> {
+export function toFlatObject(
+  sourceObj: Record<string, unknown>,
+  destObj: Record<string, unknown>,
+  filter: (
+    sourceObj: Record<string, unknown>,
+    destObj: Record<string, unknown>
+  ) => boolean
+): Record<string, unknown> {
   let props;
   let i;
   let prop;
@@ -169,7 +194,11 @@ export function toFlatObject(sourceObj: Record<string, unknown>, destObj: Record
       }
     }
     sourceObj = Object.getPrototypeOf(sourceObj);
-  } while (sourceObj && (!filter || filter(sourceObj, destObj)) && sourceObj !== Object.prototype);
+  } while (
+    sourceObj &&
+    (!filter || filter(sourceObj, destObj)) &&
+    sourceObj !== Object.prototype
+  );
 
   return destObj;
 }

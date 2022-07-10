@@ -1,4 +1,11 @@
-import { AxiosError, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, Cancel, CanceledError } from "axios";
+import {
+  AxiosError,
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosResponseHeaders,
+  Cancel,
+  CanceledError,
+} from "axios";
 import http from "http";
 import { DispatchFunc, inject, InjectOptions } from "light-my-request";
 import { Readable } from "stream";
@@ -8,20 +15,32 @@ import { axiosErrorFrom } from "./axios-error";
 import { buildParams } from "./axios-helpers";
 import * as utils from "./axios-utils";
 
-export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, options: {server?: http.Server, remoteAddress?: string} = {}) {
-  return function lightMyRequestAdapter<T = unknown>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+export default function createLightMyRequestAdapter(
+  dispatchFunc: DispatchFunc,
+  options: { server?: http.Server; remoteAddress?: string } = {}
+) {
+  return function lightMyRequestAdapter<T = unknown>(
+    config: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
     return new Promise((resolvePromise, rejectPromise) => {
       let onCanceled: (cancel?: MyCancel) => void;
       function done() {
         if (config.cancelToken) {
-          (config.cancelToken as unknown as MyCancelToken).unsubscribe(onCanceled);
+          (config.cancelToken as unknown as MyCancelToken).unsubscribe(
+            onCanceled
+          );
         }
 
         if (config.signal) {
-          (config.signal as MyAbortSignal).removeEventListener("abort", onCanceled);
+          (config.signal as MyAbortSignal).removeEventListener(
+            "abort",
+            onCanceled
+          );
         }
       }
-      function resolve(value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>) {
+      function resolve(
+        value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>
+      ) {
         done();
         resolvePromise(value);
       }
@@ -41,21 +60,27 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
       if (utils.isFormData(data) && utils.isFunction(data.getHeaders)) {
         Object.assign(headers, data.getHeaders());
       } else if (data && !utils.isStream(data)) {
-        if (config.maxBodyLength && config.maxBodyLength > -1 && data.length > config.maxBodyLength) {
-          return reject(new AxiosError(
-            "Request body larger than maxBodyLength limit",
-            AxiosError.ERR_BAD_REQUEST,
-            config
-          ));
+        if (
+          config.maxBodyLength &&
+          config.maxBodyLength > -1 &&
+          data.length > config.maxBodyLength
+        ) {
+          return reject(
+            new AxiosError(
+              "Request body larger than maxBodyLength limit",
+              AxiosError.ERR_BAD_REQUEST,
+              config
+            )
+          );
         }
       }
 
       // HTTP basic authentication
       let auth = undefined;
       if (config.auth) {
-        const username = config.auth.username || '';
-        const password = config.auth.password || '';
-        auth = username + ':' + password;
+        const username = config.auth.username || "";
+        const password = config.auth.password || "";
+        auth = username + ":" + password;
       }
 
       // Parse url
@@ -65,10 +90,10 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
       const protocol = parsed.protocol || "http:";
 
       if (!auth && parsed.auth) {
-        const urlAuth = parsed.auth.split(':');
-        const urlUsername = urlAuth[0] || '';
-        const urlPassword = urlAuth[1] || '';
-        auth = urlUsername + ':' + urlPassword;
+        const urlAuth = parsed.auth.split(":");
+        const urlUsername = urlAuth[0] || "";
+        const urlPassword = urlAuth[1] || "";
+        auth = urlUsername + ":" + urlPassword;
       }
 
       if (auth) {
@@ -80,9 +105,16 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
 
       let query;
       try {
-        query = buildParams(config.params, config.paramsSerializer).replace(/^\?/, '');
+        query = buildParams(config.params, config.paramsSerializer).replace(
+          /^\?/,
+          ""
+        );
       } catch (err) {
-        const customErr: Error & {config?: AxiosRequestConfig, url?: string, exists?: boolean} = new Error((err as Error).message);
+        const customErr: Error & {
+          config?: AxiosRequestConfig;
+          url?: string;
+          exists?: boolean;
+        } = new Error((err as Error).message);
         customErr.config = config;
         customErr.url = config.url;
         customErr.exists = true;
@@ -101,75 +133,102 @@ export default function createLightMyRequestAdapter(dispatchFunc: DispatchFunc, 
       }
 
       let aborted = false;
-      inject(dispatchFunc, {
-        url: {
-          pathname: parsed.path ?? "",
-          protocol: protocol,
-          hostname: parsed.hostname ?? undefined,
-          port: parsed.port ?? undefined,
-          query,
+      inject(
+        dispatchFunc,
+        {
+          url: {
+            pathname: parsed.path ?? "",
+            protocol: protocol,
+            hostname: parsed.hostname ?? undefined,
+            port: parsed.port ?? undefined,
+            query,
+          },
+          method: config.method?.toUpperCase() as
+            | InjectOptions["method"]
+            | undefined,
+          headers: headers as http.OutgoingHttpHeaders,
+          payload: config.data,
+          server: options.server,
+          remoteAddress: options.remoteAddress,
         },
-        method: config.method?.toUpperCase() as InjectOptions['method'] | undefined,
-        headers: headers as http.OutgoingHttpHeaders,
-        payload: config.data,
-        server: options.server,
-        remoteAddress: options.remoteAddress,
-      }, (err, res) => {
-        if (aborted) return;
+        (err, res) => {
+          if (aborted) return;
 
-        if (err) {
-          reject(axiosErrorFrom(err, null, config, res.raw.req));
-        }
-
-        const response: AxiosResponse = {
-          status: res.statusCode,
-          statusText: res.statusMessage,
-          headers: res.headers as AxiosResponseHeaders,
-          config: config,
-          request: res.raw.req,
-          data: undefined,
-        };
-
-        if (config.responseType === 'stream') {
-          const responseData = new Readable();
-          responseData.push(res.body);
-          responseData.push(null);
-          response.data = responseData;
-          settle(resolve, reject, response);
-        } else {
-          try {
-            if (config.responseType === 'arraybuffer') {
-              response.data = Buffer.from(res.body);
-            } else {
-              let responseData = res.body;
-              if (!config.responseEncoding || config.responseEncoding === 'utf8') {
-                responseData = utils.stripBOM(responseData);
-              }
-              response.data = responseData;
-            }
-          } catch (err) {
-            reject(axiosErrorFrom(err as Error, null, config, response.request, response));
+          if (err) {
+            reject(axiosErrorFrom(err, null, config, res.raw.req));
           }
-          settle(resolve, reject, response);
+
+          const response: AxiosResponse = {
+            status: res.statusCode,
+            statusText: res.statusMessage,
+            headers: res.headers as AxiosResponseHeaders,
+            config: config,
+            request: res.raw.req,
+            data: undefined,
+          };
+
+          if (config.responseType === "stream") {
+            const responseData = new Readable();
+            responseData.push(res.body);
+            responseData.push(null);
+            response.data = responseData;
+            settle(resolve, reject, response);
+          } else {
+            try {
+              if (config.responseType === "arraybuffer") {
+                response.data = Buffer.from(res.body);
+              } else {
+                let responseData = res.body;
+                if (
+                  !config.responseEncoding ||
+                  config.responseEncoding === "utf8"
+                ) {
+                  responseData = utils.stripBOM(responseData);
+                }
+                response.data = responseData;
+              }
+            } catch (err) {
+              reject(
+                axiosErrorFrom(
+                  err as Error,
+                  null,
+                  config,
+                  response.request,
+                  response
+                )
+              );
+            }
+            settle(resolve, reject, response);
+          }
         }
-      });
+      );
 
       if (config.cancelToken || config.signal) {
         // Handle cancellation
-        onCanceled = function(cancel?: MyCancel) {
+        onCanceled = function (cancel?: MyCancel) {
           if (aborted) return;
 
           aborted = true;
-          reject(!cancel || (cancel && cancel.type) ? new CanceledError() : cancel);
+          reject(
+            !cancel || (cancel && cancel.type) ? new CanceledError() : cancel
+          );
         };
 
-        config.cancelToken && (config.cancelToken as unknown as MyCancelToken).subscribe(onCanceled);
+        config.cancelToken &&
+          (config.cancelToken as unknown as MyCancelToken).subscribe(
+            onCanceled
+          );
         if (config.signal) {
-          config.signal.aborted ? onCanceled() : (config.signal as MyAbortSignal).addEventListener('abort', onCanceled);
+          config.signal.aborted
+            ? onCanceled()
+            : (config.signal as MyAbortSignal).addEventListener(
+                "abort",
+                onCanceled
+              );
         }
       }
     });
-  }
+  };
 }
 
 interface MyCancel extends Cancel {
@@ -177,9 +236,9 @@ interface MyCancel extends Cancel {
 }
 
 interface MyCancelToken {
-    subscribe(listener: (reason: MyCancel) => void): void;
-    unsubscribe(listener: (reason: MyCancel) => void): void;
-  }
+  subscribe(listener: (reason: MyCancel) => void): void;
+  unsubscribe(listener: (reason: MyCancel) => void): void;
+}
 
 interface MyAbortSignal extends AbortSignal {
   addEventListener(type: string, listener: () => void): void;

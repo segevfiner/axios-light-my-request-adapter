@@ -1,4 +1,4 @@
-import * as utils from './axios-utils';
+import * as utils from "./axios-utils";
 
 /**
  * Determines whether the specified URL is absolute
@@ -6,7 +6,7 @@ import * as utils from './axios-utils';
  * @param {string} url The URL to test
  * @returns {boolean} True if the specified URL is absolute, otherwise false
  */
-export function isAbsoluteURL(url: string): boolean{
+export function isAbsoluteURL(url: string): boolean {
   // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
   // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
   // by any combination of letters, digits, plus, period, or hyphen.
@@ -22,18 +22,18 @@ export function isAbsoluteURL(url: string): boolean{
  */
 export function combineURLs(baseURL: string, relativeURL: string): string {
   return relativeURL
-    ? baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
+    ? baseURL.replace(/\/+$/, "") + "/" + relativeURL.replace(/^\/+/, "")
     : baseURL;
 }
 
 function encode(val: string | number | boolean): string {
-  return encodeURIComponent(val).
-    replace(/%3A/gi, ':').
-    replace(/%24/g, '$').
-    replace(/%2C/gi, ',').
-    replace(/%20/g, '+').
-    replace(/%5B/gi, '[').
-    replace(/%5D/gi, ']');
+  return encodeURIComponent(val)
+    .replace(/%3A/gi, ":")
+    .replace(/%24/g, "$")
+    .replace(/%2C/gi, ",")
+    .replace(/%20/g, "+")
+    .replace(/%5B/gi, "[")
+    .replace(/%5D/gi, "]");
 }
 
 // Based buildURL from axios/helpers
@@ -43,9 +43,12 @@ function encode(val: string | number | boolean): string {
  * @param {object} [params] The params to be appended
  * @returns {string} The formatted url
  */
-export function buildParams(params: Record<string, unknown>, paramsSerializer?: (params: unknown) => string): string {
+export function buildParams(
+  params: Record<string, unknown>,
+  paramsSerializer?: (params: unknown) => string
+): string {
   if (!params) {
-    return '';
+    return "";
   }
 
   let serializedParams;
@@ -57,29 +60,32 @@ export function buildParams(params: Record<string, unknown>, paramsSerializer?: 
     const parts: string[] = [];
 
     utils.forEach(params, function serialize(val, key) {
-      if (val === null || typeof val === 'undefined') {
+      if (val === null || typeof val === "undefined") {
         return;
       }
 
       if (utils.isArray(val)) {
-        key = key + '[]';
+        key = key + "[]";
       } else {
         val = [val];
       }
 
       if (utils.isObject(val)) {
-        utils.forEach(val as Record<string, Date | object | string | number | boolean>, function parseValue(v) {
-          if (utils.isDate(v)) {
-            v = v.toISOString();
-          } else if (utils.isObject(v)) {
-            v = JSON.stringify(v);
+        utils.forEach(
+          val as Record<string, Date | object | string | number | boolean>,
+          function parseValue(v) {
+            if (utils.isDate(v)) {
+              v = v.toISOString();
+            } else if (utils.isObject(v)) {
+              v = JSON.stringify(v);
+            }
+            parts.push(encode(key) + "=" + encode(v));
           }
-          parts.push(encode(key) + '=' + encode(v));
-        });
+        );
       }
     });
 
-    serializedParams = parts.join('&');
+    serializedParams = parts.join("&");
   }
 
   return serializedParams;

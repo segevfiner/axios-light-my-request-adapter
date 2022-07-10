@@ -10,7 +10,10 @@ import { combineURLs, isAbsoluteURL } from "./axios-helpers";
  * @param {string} requestedURL Absolute or relative URL to combine
  * @returns {string} The combined full path
  */
-export function buildFullPath(baseURL: string | undefined, requestedURL: string): string {
+export function buildFullPath(
+  baseURL: string | undefined,
+  requestedURL: string
+): string {
   if (baseURL && !isAbsoluteURL(requestedURL)) {
     return combineURLs(baseURL, requestedURL);
   }
@@ -24,18 +27,26 @@ export function buildFullPath(baseURL: string | undefined, requestedURL: string)
  * @param {Function} reject A function that rejects the promise.
  * @param {object} response The response.
  */
-export function settle<T>(resolve: (value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>) => void, reject: (reason?: unknown) => void, response: AxiosResponse) {
+export function settle<T>(
+  resolve: (value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>) => void,
+  reject: (reason?: unknown) => void,
+  response: AxiosResponse
+) {
   const validateStatus = response.config.validateStatus;
   if (!response.status || !validateStatus || validateStatus(response.status)) {
-    Promise
+    Promise;
     resolve(response);
   } else {
-    reject(new AxiosError(
-      'Request failed with status code ' + response.status,
-      [AxiosError.ERR_BAD_REQUEST, AxiosError.ERR_BAD_RESPONSE][Math.floor(response.status / 100) - 4],
-      response.config,
-      response.request,
-      response
-    ));
+    reject(
+      new AxiosError(
+        "Request failed with status code " + response.status,
+        [AxiosError.ERR_BAD_REQUEST, AxiosError.ERR_BAD_RESPONSE][
+          Math.floor(response.status / 100) - 4
+        ],
+        response.config,
+        response.request,
+        response
+      )
+    );
   }
 }
