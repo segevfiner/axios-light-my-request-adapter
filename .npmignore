@@ -1,5 +1,8 @@
+/.vscode/
 /coverage/
+/tests/
 *.tgz
 .eslintignore
 .eslintrc.js
 .prettierignore
+jest.config.ts
