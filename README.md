@@ -4,7 +4,7 @@ This can be used to wire an axios based client to a server during testing using 
 ## Getting Started
 ```js
 const axios = require("axios");
-const axiosLightMyRequestAdapter = require(".").default;
+const { createLightMyRequestAdapter } = require("axios-light-my-request-adapter");
 
 function dispatch(req, res) {
   res.writeHead(200, { "Content-Type": "application/json" });
@@ -13,7 +13,7 @@ function dispatch(req, res) {
 
 const instance = axios.create({
   baseURL: "http://localhost/",
-  adapter: axiosLightMyRequestAdapter(dispatch),
+  adapter: createLightMyRequestAdapter(dispatch),
 });
 
 (async function () {

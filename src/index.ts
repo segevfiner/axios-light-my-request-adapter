@@ -15,7 +15,7 @@ import { axiosErrorFrom } from "./axios-error";
 import { buildParams } from "./axios-helpers";
 import * as utils from "./axios-utils";
 
-export default function createLightMyRequestAdapter(
+export function createLightMyRequestAdapter(
   dispatchFunc: DispatchFunc,
   options: { server?: http.Server; remoteAddress?: string } = {}
 ) {
