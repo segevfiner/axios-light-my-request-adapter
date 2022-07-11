@@ -265,12 +265,15 @@ interface FastifyInstance {
   ready(readyListener: (err: Error) => void): FastifyInstance;
 }
 
-export function createLightMyRequestAdapterFromFastify(instance: FastifyInstance, opts: LightMyRequestAdapterOptions = {}) {
+export function createLightMyRequestAdapterFromFastify(
+  instance: FastifyInstance,
+  opts: LightMyRequestAdapterOptions = {}
+) {
   return createLightMyRequestAdapter((req, res) => {
     instance.ready((err) => {
       if (err) {
-        res.emit('error', err);
-        return
+        res.emit("error", err);
+        return;
       }
       instance.routing(req, res);
     });
