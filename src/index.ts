@@ -1,4 +1,5 @@
 import {
+  AxiosAdapter,
   AxiosError,
   AxiosRequestConfig,
   AxiosResponse,
@@ -15,10 +16,24 @@ import { axiosErrorFrom } from "./axios-error";
 import { buildParams } from "./axios-helpers";
 import * as utils from "./axios-utils";
 
+export interface LightMyRequestAdapterOptions {
+  server?: http.Server;
+  remoteAddress?: string;
+}
+
+/**
+ * Create an {@link AxiosAdapter} that will inject requests/responses into `dispatchFunc` via Light my Request.
+ *
+ * @param dispatchFunc - listener function. The same as you would pass to Http.createServer when making a node HTTP server.
+ * @param opts - Additional options
+ * @param opts.server - Optional http server. It is used for binding the dispatchFunc
+ * @param opts.remoteAddress - an optional string specifying the client remote address. Defaults to '127.0.0.1'
+ * @returns An {@link AxiosAdapter}
+ */
 export function createLightMyRequestAdapter(
   dispatchFunc: DispatchFunc,
-  options: { server?: http.Server; remoteAddress?: string } = {}
-) {
+  opts: LightMyRequestAdapterOptions = {}
+): AxiosAdapter {
   return function lightMyRequestAdapter<T = unknown>(
     config: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
@@ -148,8 +163,8 @@ export function createLightMyRequestAdapter(
             | undefined,
           headers: headers as http.OutgoingHttpHeaders,
           payload: config.data,
-          server: options.server,
-          remoteAddress: options.remoteAddress,
+          server: opts.server,
+          remoteAddress: opts.remoteAddress,
         },
         (err, res) => {
           if (aborted) return;
@@ -243,4 +258,21 @@ interface MyCancelToken {
 interface MyAbortSignal extends AbortSignal {
   addEventListener(type: string, listener: () => void): void;
   removeEventListener(type: string, listener: () => void): void;
+}
+
+interface FastifyInstance {
+  routing(req: unknown, res: unknown): void;
+  ready(readyListener: (err: Error) => void): FastifyInstance;
+}
+
+export function createLightMyRequestAdapterFromFastify(instance: FastifyInstance, opts: LightMyRequestAdapterOptions = {}) {
+  return createLightMyRequestAdapter((req, res) => {
+    instance.ready((err) => {
+      if (err) {
+        res.emit('error', err);
+        return
+      }
+      instance.routing(req, res);
+    });
+  }, opts);
 }
