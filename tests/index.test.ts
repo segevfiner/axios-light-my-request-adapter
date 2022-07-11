@@ -1,7 +1,11 @@
 import axios from "axios";
 import http from "http";
+import fastify from "fastify";
 import { DispatchFunc } from "light-my-request";
-import { createLightMyRequestAdapter } from "..";
+import {
+  createLightMyRequestAdapter,
+  createLightMyRequestAdapterFromFastify,
+} from "..";
 
 test("hello world", async () => {
   function dispatch(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -20,4 +24,21 @@ test("hello world", async () => {
   expect(res.data).toMatchObject({ data: "Hello World!" });
 });
 
-export {};
+test("fastify hello world", async () => {
+  const app = fastify();
+  app.get("/", async () => {
+    return { data: "Hello World!" };
+  });
+
+  const instance = axios.create({
+    baseURL: "http://localhost/",
+    adapter: createLightMyRequestAdapterFromFastify(app),
+  });
+
+  const res = await instance.get("/");
+  expect(res.status).toBe(200);
+  expect(res.headers).toMatchObject({
+    "content-type": "application/json; charset=utf-8",
+  });
+  expect(res.data).toMatchObject({ data: "Hello World!" });
+});
