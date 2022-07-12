@@ -25,3 +25,38 @@ const instance = axios.create({
   console.log(res);
 })();
 ```
+
+Or with [Fastify](https://www.fastify.io/):
+```js
+const axios = require("axios");
+const fastify = require("fastify");
+const {
+  createLightMyRequestAdapterFromFastify,
+} = require("axios-light-my-request-adapter");
+
+const app = fastify();
+app.get("/", async () => {
+  return { data: "Hello World!" };
+});
+
+const instance = axios.create({
+  baseURL: "http://localhost/",
+  adapter: createLightMyRequestAdapterFromFastify(app),
+});
+
+(async function () {
+  const res = await instance.get("/");
+  console.log(res);
+})();
+```
+
+## Caveats
+* Cancellation (`AbortController`/`CancelToken`) is faked and won't actually cancel the underlying
+  request, that is, inject a disconnection.
+* `timeout` is not supported.
+* TODO `decompress` might not work.
+
+## License
+MIT.
+
+Some code was taken from [axios](https://github.com/axios/axios), see [NOTICE](NOTICE)
