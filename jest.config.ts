@@ -68,7 +68,7 @@ const config: Config.InitialOptions = {
   // A set of global variables that need to be available in all test environments
   globals: {
     "ts-jest": {
-      tsconfig: "tests/tsconfig.json",
+      tsconfig: "test/tsconfig.json",
     },
   },
 
