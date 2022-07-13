@@ -66,7 +66,6 @@ describe('Light my Request adapter', () => {
         return chunks.join();
       }));
 
-
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ data: `Hello ${body.name}!` }));
     })
