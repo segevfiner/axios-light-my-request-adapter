@@ -27,6 +27,7 @@ const instance = axios.create({
 ```
 
 Or with [Fastify](https://www.fastify.io/):
+
 ```js
 const axios = require("axios");
 const fastify = require("fastify");
@@ -51,12 +52,14 @@ const instance = axios.create({
 ```
 
 ## Caveats
-* Cancellation (`AbortController`/`CancelToken`) is faked and won't actually cancel the underlying
+
+- Cancellation (`AbortController`/`CancelToken`) is faked and won't actually cancel the underlying
   request, that is, inject a disconnection.
-* `timeout` is not supported.
-* TODO `decompress` might not work and still needs to be implemented.
+- `timeout` is not supported.
+- TODO `decompress` might not work and still needs to be implemented.
 
 ## License
+
 MIT.
 
 Some code was taken from [axios](https://github.com/axios/axios), see [NOTICE](NOTICE)
