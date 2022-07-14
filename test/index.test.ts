@@ -82,6 +82,19 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.data).toMatchObject({ data: "Hello World!" });
   });
 
+  test("headers", async () => {
+    dispatch.mockImplementationOnce((req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: `Hello ${req.headers["x-name"]}!` }));
+    });
+
+    const res = await instance.get("/", { headers: { "X-Name": "World" } });
+    expect(dispatch).toBeCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({ "content-type": "application/json" });
+    expect(res.data).toMatchObject({ data: "Hello World!" });
+  });
+
   test("params", async () => {
     dispatch.mockImplementationOnce((req, res) => {
       const url = new URL(req.url!, `http://${req.headers.host}`);
@@ -98,7 +111,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.data).toMatchObject({ data: "Hello World!" });
   });
 
-  test("request body", async () => {
+  test("data", async () => {
     dispatch.mockImplementationOnce(async (req, res) => {
       const body: { name?: string } = JSON.parse(
         await stream.promises.pipeline(req, async function (source) {
