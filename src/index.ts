@@ -102,7 +102,6 @@ export function createLightMyRequestAdapter(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const fullPath = buildFullPath(config.baseURL, config.url!);
       const parsed = url.parse(fullPath);
-      const protocol = parsed.protocol || "http:";
 
       if (!auth && parsed.auth) {
         const urlAuth = parsed.auth.split(":");
@@ -118,12 +117,16 @@ export function createLightMyRequestAdapter(
         headers.authorization = "Basic " + Buffer.from(auth).toString("base64");
       }
 
-      let query;
       try {
-        query = buildParams(config.params, config.paramsSerializer).replace(
+        const params = buildParams(config.params, config.paramsSerializer).replace(
           /^\?/,
           ""
         );
+        if (parsed.search != null) {
+          parsed.search += "&" + params;
+        } else {
+          parsed.search = params;
+        }
       } catch (err) {
         const customErr: Error & {
           config?: AxiosRequestConfig;
@@ -151,13 +154,7 @@ export function createLightMyRequestAdapter(
       inject(
         dispatchFunc,
         {
-          url: {
-            pathname: parsed.path ?? "",
-            protocol: protocol,
-            hostname: parsed.hostname ?? undefined,
-            port: parsed.port ?? undefined,
-            query,
-          },
+          url: url.format(parsed),
           method: config.method?.toUpperCase() as
             | InjectOptions["method"]
             | undefined,

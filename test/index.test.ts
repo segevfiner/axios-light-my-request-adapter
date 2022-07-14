@@ -82,7 +82,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.data).toMatchObject({ data: "Hello World!" });
   });
 
-  test.only("params", async () => {
+  test("params", async () => {
     dispatch.mockImplementationOnce((req, res) => {
       const url = new URL(req.url!, `http://${req.headers.host}`);
       res.writeHead(200, { "Content-Type": "application/json" });
