@@ -2,6 +2,7 @@
 
 ## Unreleased
 ### Added
+* Tests.
 * `timeout` support.
 
 ### Fixed
