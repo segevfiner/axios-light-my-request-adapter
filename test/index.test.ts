@@ -136,6 +136,27 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
     expect(res.data).toMatchObject({ data: "Hello World!" });
   });
+
+  test("auth", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: `Hello World!` }));
+    });
+
+    const res = await instance.get("/", {auth: {username: "test", password: "123456"}});
+    expect(dispatch).toBeCalledWith(expect.objectContaining({
+        headers: expect.objectContaining({
+          authorization: "Basic dGVzdDoxMjM0NTY=",
+        }),
+      }),
+      expect.any(http.ServerResponse)
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(res.data).toMatchObject({ data: "Hello World!" });
+  });
 });
 
 test("fastify hello world", async () => {
