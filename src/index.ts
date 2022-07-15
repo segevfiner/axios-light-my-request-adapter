@@ -39,6 +39,7 @@ export function createLightMyRequestAdapter(
   ): Promise<AxiosResponse<T>> {
     return new Promise((resolvePromise, rejectPromise) => {
       let onCanceled: (cancel?: MyCancel) => void;
+      let timeout: ReturnType<typeof setTimeout>;
       function done() {
         if (config.cancelToken) {
           (config.cancelToken as unknown as MyCancelToken).unsubscribe(
@@ -51,6 +52,10 @@ export function createLightMyRequestAdapter(
             "abort",
             onCanceled
           );
+        }
+
+        if (timeout) {
+          clearTimeout(timeout);
         }
       }
       function resolve(
@@ -214,6 +219,37 @@ export function createLightMyRequestAdapter(
           }
         }
       );
+
+      // Handle request timeout
+      if (config.timeout) {
+        let timeoutMs: number;
+        if (config.timeout) {
+          // This is forcing a int timeout to avoid problems if the `req` interface doesn't handle other types.
+          timeoutMs = parseInt(config.timeout as unknown as string, 10);
+
+          if (isNaN(timeoutMs)) {
+            reject(new AxiosError(
+              'error trying to parse `config.timeout` to int',
+              AxiosError.ERR_BAD_OPTION_VALUE,
+              config,
+              // req
+            ));
+
+            return;
+          }
+
+          timeout = setTimeout(function handleRequestTimeout() {
+            aborted = true;
+            const transitional = config.transitional || { clarifyTimeoutError: false };
+            reject(new AxiosError(
+              'timeout of ' + timeoutMs + 'ms exceeded',
+              transitional.clarifyTimeoutError ? AxiosError.ETIMEDOUT : AxiosError.ECONNABORTED,
+              config,
+              // req
+            ));
+          }, timeoutMs);
+        }
+      }
 
       if (config.cancelToken || config.signal) {
         // Handle cancellation

@@ -55,7 +55,6 @@ const instance = axios.create({
 
 - Cancellation (`AbortController`/`CancelToken`) is faked and won't actually cancel the underlying
   request, that is, inject a disconnection.
-- `timeout` is not supported.
 - TODO `decompress` might not work and still needs to be implemented.
 
 ## License
