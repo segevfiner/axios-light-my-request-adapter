@@ -2,7 +2,6 @@ import axios, { Axios } from "axios";
 import http from "http";
 import stream from "stream";
 import fastify from "fastify";
-import { DispatchFunc } from "light-my-request";
 import {
   createLightMyRequestAdapter,
   createLightMyRequestAdapterFromFastify,
