@@ -15,7 +15,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   beforeEach(() => {
     instance = axios.create({
       baseURL: "http://localhost/",
-      adapter: createLightMyRequestAdapter(dispatch as unknown as DispatchFunc),
+      adapter: createLightMyRequestAdapter(dispatch),
     });
   });
 
