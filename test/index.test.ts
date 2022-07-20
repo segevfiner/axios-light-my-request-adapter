@@ -204,6 +204,28 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
     expect(res.data).toStrictEqual("Hello World!");
   });
+
+  test("responseType stream", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Hello World!");
+    });
+
+    const res = await instance.get("/", { responseType: "stream" });
+    expect(dispatch).toBeCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({
+      "content-type": "text/plain",
+    });
+
+    await expect(stream.promises.pipeline(res.data, async (source) => {
+      const chunks = [];
+      for await (const chunk of source) {
+        chunks.push(chunk);
+      }
+      return chunks.join();
+    })).resolves.toBe("Hello World!")
+  });
 });
 
 test("fastify hello world", async () => {
