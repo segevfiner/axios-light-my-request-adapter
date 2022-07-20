@@ -145,7 +145,12 @@ export function createLightMyRequestAdapter(
         return;
       }
 
-      if (config.socketPath) {
+      if (config.maxRedirects != null) {
+        reject(new Error("maxRedirects not supported"));
+        return;
+      }
+
+      if (config.socketPath != null) {
         reject(new Error("socketPath not supported"));
         return;
       }
