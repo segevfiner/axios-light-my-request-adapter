@@ -7,7 +7,7 @@ import {
   Cancel,
   CanceledError,
 } from "axios";
-import http from "http";
+import http, { request } from "http";
 import { DispatchFunc, inject, InjectOptions } from "light-my-request";
 import { Readable } from "stream";
 import url from "url";
@@ -186,16 +186,36 @@ export function createLightMyRequestAdapter(
 
           if (config.responseType === "stream") {
             const responseData = new Readable();
-            responseData.push(res.body);
+            responseData.push(res.rawPayload);
             responseData.push(null);
             response.data = responseData;
             settle(resolve, reject, response);
           } else {
+            // make sure the content length is not over the maxContentLength if specified
+            if (
+              config.maxContentLength &&
+              config.maxContentLength > -1 &&
+              res.rawPayload.length > config.maxContentLength
+            ) {
+              // stream.destoy() emit aborted event before calling reject() on Node.js v16
+              reject(
+                new AxiosError(
+                  "maxContentLength size of " +
+                    config.maxContentLength +
+                    " exceeded",
+                  AxiosError.ERR_BAD_RESPONSE,
+                  config,
+                  res.raw.req
+                )
+              );
+              return;
+            }
+
             try {
               if (config.responseType === "arraybuffer") {
-                response.data = Buffer.from(res.body);
+                response.data = res.rawPayload;
               } else {
-                let responseData = res.body;
+                let responseData = res.payload;
                 if (
                   !config.responseEncoding ||
                   config.responseEncoding === "utf8"

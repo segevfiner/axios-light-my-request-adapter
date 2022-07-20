@@ -1,4 +1,4 @@
-import axios, { Axios } from "axios";
+import axios, { Axios, AxiosError } from "axios";
 import http from "http";
 import stream from "stream";
 import fastify from "fastify";
@@ -218,13 +218,38 @@ describe("Light my Request adapter with plain dispatch", () => {
       "content-type": "text/plain",
     });
 
-    await expect(stream.promises.pipeline(res.data, async (source) => {
-      const chunks = [];
-      for await (const chunk of source) {
-        chunks.push(chunk);
-      }
-      return chunks.join();
-    })).resolves.toBe("Hello World!")
+    await expect(
+      stream.promises.pipeline(res.data, async (source) => {
+        const chunks = [];
+        for await (const chunk of source) {
+          chunks.push(chunk);
+        }
+        return chunks.join();
+      })
+    ).resolves.toBe("Hello World!");
+  });
+
+  test("maxContentLength", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Hello World!");
+    });
+
+    await expect(instance.get("/", { maxContentLength: 1 })).rejects.toThrow(
+      AxiosError
+    );
+    expect(dispatch).toBeCalledTimes(1);
+  });
+
+  test("maxBodyLength", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Hello World!");
+    });
+
+    await expect(
+      instance.post("/", "Hello, World!", { maxBodyLength: 1 })
+    ).rejects.toThrow(AxiosError);
   });
 });
 
