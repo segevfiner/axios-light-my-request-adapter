@@ -5,9 +5,9 @@ import {
   AxiosResponse,
   AxiosResponseHeaders,
   Cancel,
-  CanceledError,
+  CanceledError
 } from "axios";
-import http, { request } from "http";
+import http from "http";
 import { DispatchFunc, inject, InjectOptions } from "light-my-request";
 import { Readable } from "stream";
 import url from "url";
