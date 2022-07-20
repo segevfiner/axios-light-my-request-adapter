@@ -160,6 +160,28 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
+  test("auth in URL", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: `Hello World!` }));
+    });
+
+    const res = await instance.get("http://test:123456@localhost/");
+    expect(dispatch).toBeCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          authorization: "Basic dGVzdDoxMjM0NTY=",
+        }),
+      }),
+      expect.any(http.ServerResponse)
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
+  });
+
   test("responseType arrayBuffer", async () => {
     dispatch.mockImplementationOnce(async (req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -242,14 +264,19 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("maxBodyLength", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
-      res.writeHead(200, { "Content-Type": "text/plain" });
-      res.end("Hello World!");
-    });
-
     await expect(
       instance.post("/", "Hello, World!", { maxBodyLength: 1 })
     ).rejects.toThrow(AxiosError);
+  });
+
+  test("Failed request", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(500);
+      res.end();
+    });
+
+    await expect(instance.get("/")).rejects.toThrow(AxiosError);
+    expect(dispatch).toBeCalledTimes(1);
   });
 });
 
