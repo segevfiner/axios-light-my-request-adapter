@@ -28,7 +28,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(dispatch).toBeCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("url", async () => {
@@ -44,7 +44,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("method", async () => {
@@ -60,7 +60,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("Host header", async () => {
@@ -78,7 +78,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("headers", async () => {
@@ -91,7 +91,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(dispatch).toBeCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("params", async () => {
@@ -107,7 +107,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(dispatch).toBeCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("data", async () => {
@@ -133,7 +133,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.headers).toMatchObject({
       "content-type": "application/json",
     });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
   });
 
   test("auth", async () => {
@@ -142,8 +142,11 @@ describe("Light my Request adapter with plain dispatch", () => {
       res.end(JSON.stringify({ data: `Hello World!` }));
     });
 
-    const res = await instance.get("/", {auth: {username: "test", password: "123456"}});
-    expect(dispatch).toBeCalledWith(expect.objectContaining({
+    const res = await instance.get("/", {
+      auth: { username: "test", password: "123456" },
+    });
+    expect(dispatch).toBeCalledWith(
+      expect.objectContaining({
         headers: expect.objectContaining({
           authorization: "Basic dGVzdDoxMjM0NTY=",
         }),
@@ -154,7 +157,52 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.headers).toMatchObject({
       "content-type": "application/json",
     });
-    expect(res.data).toMatchObject({ data: "Hello World!" });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
+  });
+
+  test("responseType arrayBuffer", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: `Hello World!` }));
+    });
+
+    const res = await instance.get("/", { responseType: "arraybuffer" });
+    expect(dispatch).toBeCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(res.data).toStrictEqual(Buffer.from('{"data":"Hello World!"}'));
+  });
+
+  test("responseType document", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ data: `Hello World!` }));
+    });
+
+    const res = await instance.get("/", { responseType: "document" });
+    expect(dispatch).toBeCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(res.data).toStrictEqual({ data: "Hello World!" });
+  });
+
+  test("responseType text", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Hello World!");
+    });
+
+    const res = await instance.get("/", { responseType: "text" });
+    expect(dispatch).toBeCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({
+      "content-type": "text/plain",
+    });
+    expect(res.data).toStrictEqual("Hello World!");
   });
 });
 

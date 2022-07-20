@@ -123,10 +123,10 @@ export function createLightMyRequestAdapter(
       }
 
       try {
-        const params = buildParams(config.params, config.paramsSerializer).replace(
-          /^\?/,
-          ""
-        );
+        const params = buildParams(
+          config.params,
+          config.paramsSerializer
+        ).replace(/^\?/, "");
         if (parsed.search != null) {
           parsed.search += "&" + params;
         } else {
@@ -228,25 +228,33 @@ export function createLightMyRequestAdapter(
           timeoutMs = parseInt(config.timeout as unknown as string, 10);
 
           if (isNaN(timeoutMs)) {
-            reject(new AxiosError(
-              'error trying to parse `config.timeout` to int',
-              AxiosError.ERR_BAD_OPTION_VALUE,
-              config,
-              // req
-            ));
+            reject(
+              new AxiosError(
+                "error trying to parse `config.timeout` to int",
+                AxiosError.ERR_BAD_OPTION_VALUE,
+                config
+                // req
+              )
+            );
 
             return;
           }
 
           timeout = setTimeout(function handleRequestTimeout() {
             aborted = true;
-            const transitional = config.transitional || { clarifyTimeoutError: false };
-            reject(new AxiosError(
-              'timeout of ' + timeoutMs + 'ms exceeded',
-              transitional.clarifyTimeoutError ? AxiosError.ETIMEDOUT : AxiosError.ECONNABORTED,
-              config,
-              // req
-            ));
+            const transitional = config.transitional || {
+              clarifyTimeoutError: false,
+            };
+            reject(
+              new AxiosError(
+                "timeout of " + timeoutMs + "ms exceeded",
+                transitional.clarifyTimeoutError
+                  ? AxiosError.ETIMEDOUT
+                  : AxiosError.ECONNABORTED,
+                config
+                // req
+              )
+            );
           }, timeoutMs);
         }
       }
