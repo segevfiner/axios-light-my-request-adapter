@@ -5,6 +5,8 @@
 
 This can be used to wire an axios based client to a server during testing using Light my Request.
 
+[Documentation](https://segevfiner.github.io/axios-light-my-request-adapter/)
+
 ## Getting Started
 
 ```js
