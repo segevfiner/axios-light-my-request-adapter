@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2022-07-22
+
+### Changed
+
+- Updated `README.md`.
+
 ## 0.2.0 - 2022-07-21
 
 ### Added

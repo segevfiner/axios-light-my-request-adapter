@@ -58,9 +58,9 @@ const instance = axios.create({
 
 ## Caveats
 
-- `maxRedirects`, `socketPath`, and `proxy` are not
-- `decompress` is ignored as Light my Request doesn't support that cleanly. It shoudln't pass
-  `Accept-Encoding` anyhow.
+- `maxRedirects`, `socketPath`, and `proxy` are not supported and will throw.
+- `decompress` is ignored as Light my Request doesn't support that cleanly. It wouldn't pass
+  `Accept-Encoding` by default anyhow.
 
 ## License
 
