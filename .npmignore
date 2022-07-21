@@ -1,9 +1,11 @@
 /.vscode/
 /coverage/
 /test/
+/docs/
 /.github/
 *.tgz
 .eslintignore
 .eslintrc.js
 .prettierignore
 jest.config.ts
+typedoc.json

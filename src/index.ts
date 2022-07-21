@@ -17,18 +17,21 @@ import { buildParams } from "./axios-helpers";
 import * as utils from "./axios-utils";
 
 export interface LightMyRequestAdapterOptions {
+  /** Optional http server. It is used for binding the `dispatchFunc` */
   server?: http.Server;
+
+  /** an optional string specifying the client remote address. Defaults to '127.0.0.1' */
   remoteAddress?: string;
 }
 
 /**
- * Create an {@link AxiosAdapter} that will inject requests/responses into `dispatchFunc` via Light my Request.
+ * Create an `AxiosAdapter` that will inject requests/responses into `dispatchFunc` via Light my
+ * Request.
  *
- * @param dispatchFunc - listener function. The same as you would pass to Http.createServer when making a node HTTP server.
+ * @param dispatchFunc - Listener function. The same as you would pass to `http.createServer` when
+ *                       making a node HTTP server.
  * @param opts - Additional options
- * @param opts.server - Optional http server. It is used for binding the dispatchFunc
- * @param opts.remoteAddress - an optional string specifying the client remote address. Defaults to '127.0.0.1'
- * @returns An {@link AxiosAdapter}
+ * @returns An `AxiosAdapter`
  */
 export function createLightMyRequestAdapter(
   dispatchFunc: DispatchFunc,
@@ -327,11 +330,22 @@ interface MyAbortSignal extends AbortSignal {
   removeEventListener(type: string, listener: () => void): void;
 }
 
-interface FastifyInstance {
+/**
+ * Simple interface for a `FastifyInstance` for {@link createLightMyRequestAdapterFromFastify}.
+ */
+export interface FastifyInstance {
   routing(req: unknown, res: unknown): void;
   ready(readyListener: (err: Error) => void): FastifyInstance;
 }
 
+/**
+ * Create an `AxiosAdapter` that will inject requests/responses into the Fastify `instance` via
+ * Light my Request.
+ *
+ * @param instance - A Fastify instance.
+ * @param opts - Additional options
+ * @returns An `AxiosAdapter`
+ */
 export function createLightMyRequestAdapterFromFastify(
   instance: FastifyInstance,
   opts: LightMyRequestAdapterOptions = {}
