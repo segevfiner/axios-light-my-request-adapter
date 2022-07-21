@@ -1,6 +1,7 @@
 /.vscode/
 /coverage/
 /test/
+/.github/
 *.tgz
 .eslintignore
 .eslintrc.js
