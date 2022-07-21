@@ -53,9 +53,9 @@ const instance = axios.create({
 
 ## Caveats
 
-- Cancellation (`AbortController`/`CancelToken`) is faked and won't actually cancel the underlying
-  request, that is, inject a disconnection.
-- TODO `decompress` might not work and still needs to be implemented.
+- `maxRedirects`, `socketPath`, and `proxy` are not
+- `decompress` is ignored as Light my Request doesn't support that cleanly. It shoudln't pass
+  `Accept-Encoding` anyhow.
 
 ## License
 

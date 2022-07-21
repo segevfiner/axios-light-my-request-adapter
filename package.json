@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
-    "light-my-request": "^5.1.0"
+    "light-my-request": "^5.2.0"
   },
   "devDependencies": {
     "@jest/types": "^28.1.1",

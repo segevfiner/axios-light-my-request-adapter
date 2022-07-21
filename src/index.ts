@@ -5,7 +5,7 @@ import {
   AxiosResponse,
   AxiosResponseHeaders,
   Cancel,
-  CanceledError
+  CanceledError,
 } from "axios";
 import http from "http";
 import { DispatchFunc, inject, InjectOptions } from "light-my-request";
@@ -85,13 +85,14 @@ export function createLightMyRequestAdapter(
           config.maxBodyLength > -1 &&
           data.length > config.maxBodyLength
         ) {
-          return reject(
+          reject(
             new AxiosError(
               "Request body larger than maxBodyLength limit",
               AxiosError.ERR_BAD_REQUEST,
               config
             )
           );
+          return;
         }
       }
 
@@ -160,7 +161,7 @@ export function createLightMyRequestAdapter(
         return;
       }
 
-      let aborted = false;
+      const controller = new AbortController();
       inject(
         dispatchFunc,
         {
@@ -172,12 +173,12 @@ export function createLightMyRequestAdapter(
           payload: config.data,
           server: opts.server,
           remoteAddress: opts.remoteAddress,
+          signal: controller.signal,
         },
         (err, res) => {
-          if (aborted) return;
-
           if (err) {
-            reject(axiosErrorFrom(err, null, config, res.raw.req));
+            reject(axiosErrorFrom(err, null, config, res?.raw.req));
+            return;
           }
 
           const response: AxiosResponse = {
@@ -266,7 +267,7 @@ export function createLightMyRequestAdapter(
           }
 
           timeout = setTimeout(function handleRequestTimeout() {
-            aborted = true;
+            controller.abort();
             const transitional = config.transitional || {
               clarifyTimeoutError: false,
             };
@@ -287,9 +288,9 @@ export function createLightMyRequestAdapter(
       if (config.cancelToken || config.signal) {
         // Handle cancellation
         onCanceled = function (cancel?: MyCancel) {
-          if (aborted) return;
+          if (controller.signal.aborted) return;
 
-          aborted = true;
+          controller.abort();
           reject(
             !cancel || (cancel && cancel.type) ? new CanceledError() : cancel
           );

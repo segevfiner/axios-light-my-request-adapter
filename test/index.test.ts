@@ -278,6 +278,84 @@ describe("Light my Request adapter with plain dispatch", () => {
     await expect(instance.get("/")).rejects.toThrow(AxiosError);
     expect(dispatch).toBeCalledTimes(1);
   });
+
+  test("cancelToken", async () => {
+    dispatch.mockImplementationOnce((req, res) => {
+      const timeout = setTimeout(() => {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("Hello World!");
+      }, 5000);
+
+      req.on("close", () => clearTimeout(timeout));
+    });
+
+    const source = axios.CancelToken.source();
+    const promise = instance.get("/", { cancelToken: source.token });
+    source.cancel();
+    await expect(promise).rejects.toThrow(AxiosError);
+    expect(dispatch).toBeCalledTimes(1);
+  });
+
+  test("signal", async () => {
+    dispatch.mockImplementationOnce((req, res) => {
+      const timeout = setTimeout(() => {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("Hello World!");
+      }, 5000);
+
+      req.on("close", () => clearTimeout(timeout));
+    });
+
+    const controller = new AbortController();
+    const promise = instance.get("/", { signal: controller.signal });
+    controller.abort();
+    await expect(promise).rejects.toThrow(AxiosError);
+    expect(dispatch).toBeCalledTimes(1);
+  });
+
+  test("cancelToken and signal", async () => {
+    dispatch.mockImplementationOnce((req, res) => {
+      const timeout = setTimeout(() => {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("Hello World!");
+      }, 5000);
+
+      req.on("close", () => clearTimeout(timeout));
+    });
+
+    const source = axios.CancelToken.source();
+    const controller = new AbortController();
+    const promise = instance.get("/", {
+      cancelToken: source.token,
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(promise).rejects.toThrow(AxiosError);
+    expect(dispatch).toBeCalledTimes(1);
+  });
+
+  test("timeout", async () => {
+    jest.useFakeTimers();
+    try {
+      dispatch.mockImplementationOnce((req, res) => {
+        const timeout = setTimeout(() => {
+          res.writeHead(200, { "Content-Type": "text/plain" });
+          res.end("Hello World!");
+        }, 5000);
+
+        req.on("close", () => clearTimeout(timeout));
+      });
+
+      const promise = instance.get("/", {
+        timeout: 1000,
+      });
+      jest.runAllTimers();
+      await expect(promise).rejects.toThrow(AxiosError);
+      expect(dispatch).toBeCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 test("fastify hello world", async () => {

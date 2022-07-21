@@ -6,6 +6,11 @@
 
 - Tests.
 - `timeout` support.
+- Real cancellation support (Released in `light-my-request@5.2.0`).
+
+### Changed
+
+- Updated caveats in `README.md`.
 
 ### Fixed
 
