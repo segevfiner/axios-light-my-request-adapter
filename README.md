@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/segevfiner/axios-light-my-request-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/segevfiner/axios-light-my-request-adapter/actions/workflows/ci.yml)
 
+[![Docs](https://github.com/segevfiner/axios-light-my-request-adapter/actions/workflows/docs.yml/badge.svg)](https://segevfiner.github.io/axios-light-my-request-adapter/)
+
 This can be used to wire an axios based client to a server during testing using Light my Request.
 
 ## Getting Started
