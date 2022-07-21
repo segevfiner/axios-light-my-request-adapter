@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2022-07-21
 
 ### Added
 
 - Tests.
 - `timeout` support.
 - Real cancellation support (Released in `light-my-request@5.2.0`).
+- [Documentation](https://segevfiner.github.io/axios-light-my-request-adapter/).
 
 ### Changed
 
