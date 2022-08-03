@@ -8,7 +8,7 @@
     "prepack": "npm run build",
     "build": "tsc",
     "watch": "tsc -w",
-    "lint": "eslint",
+    "lint": "eslint .",
     "lint:formatting": "pretter --check .",
     "format": "prettier --write .",
     "test": "jest",
