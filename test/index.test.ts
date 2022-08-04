@@ -6,7 +6,7 @@ import fastify from "fastify";
 import {
   createLightMyRequestAdapter,
   createLightMyRequestAdapterFromFastify,
-} from "..";
+} from "../src";
 
 describe("Light my Request adapter with plain dispatch", () => {
   const dispatch = jest.fn<void, Parameters<http.RequestListener>>();
