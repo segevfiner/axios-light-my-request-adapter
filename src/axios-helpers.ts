@@ -44,7 +44,7 @@ function encode(val: string | number | boolean): string {
  * @returns {string} The formatted url
  */
 export function buildParams(
-  params: Record<string, unknown>,
+  params: unknown,
   paramsSerializer?: (params: unknown) => string
 ): string {
   if (!params) {
@@ -59,31 +59,34 @@ export function buildParams(
   } else {
     const parts: string[] = [];
 
-    utils.forEach(params, function serialize(val, key) {
-      if (val === null || typeof val === "undefined") {
-        return;
-      }
+    utils.forEach(
+      params as Record<string, unknown>,
+      function serialize(val, key) {
+        if (val === null || typeof val === "undefined") {
+          return;
+        }
 
-      if (utils.isArray(val)) {
-        key = key + "[]";
-      } else {
-        val = [val];
-      }
+        if (utils.isArray(val)) {
+          key = key + "[]";
+        } else {
+          val = [val];
+        }
 
-      if (utils.isObject(val)) {
-        utils.forEach(
-          val as Record<string, Date | object | string | number | boolean>,
-          function parseValue(v) {
-            if (utils.isDate(v)) {
-              v = v.toISOString();
-            } else if (utils.isObject(v)) {
-              v = JSON.stringify(v);
+        if (utils.isObject(val)) {
+          utils.forEach(
+            val as Record<string, Date | object | string | number | boolean>,
+            function parseValue(v) {
+              if (utils.isDate(v)) {
+                v = v.toISOString();
+              } else if (utils.isObject(v)) {
+                v = JSON.stringify(v);
+              }
+              parts.push(encode(key) + "=" + encode(v));
             }
-            parts.push(encode(key) + "=" + encode(v));
-          }
-        );
+          );
+        }
       }
-    });
+    );
 
     serializedParams = parts.join("&");
   }

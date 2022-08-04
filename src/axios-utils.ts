@@ -1,5 +1,6 @@
 import { Readable } from "stream";
 
+// eslint-disable-next-line @typescript-eslint/unbound-method
 const toString = Object.prototype.toString;
 
 // eslint-disable-next-line func-names
@@ -9,7 +10,7 @@ const kindOf = (function (cache) {
     const str = toString.call(thing);
     return cache[str] || (cache[str] = str.slice(8, -1).toLowerCase());
   };
-})(Object.create(null));
+})(Object.create(null) as Record<string, string>);
 
 function kindOfTest<T>(type: string) {
   type = type.toLowerCase();
@@ -169,17 +170,14 @@ export function stripBOM(content: string): string {
  * @returns {Object}
  */
 export function toFlatObject(
-  sourceObj: Record<string, unknown>,
-  destObj: Record<string, unknown>,
-  filter: (
-    sourceObj: Record<string, unknown>,
-    destObj: Record<string, unknown>
-  ) => boolean
-): Record<string, unknown> {
+  sourceObj: unknown,
+  destObj: unknown,
+  filter: (sourceObj: unknown, destObj: unknown) => boolean
+): unknown {
   let props;
   let i;
   let prop;
-  const merged: Record<string, unknown> = {};
+  const merged = {};
 
   destObj = destObj || {};
 
@@ -188,10 +186,12 @@ export function toFlatObject(
     i = props.length;
     while (i-- > 0) {
       prop = props[i];
-      if (!merged[prop]) {
-        destObj[prop] = sourceObj[prop];
-        merged[prop] = true;
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+      if (!(merged as any)[prop]) {
+        (destObj as any)[prop] = (sourceObj as any)[prop];
+        (merged as any)[prop] = true;
       }
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
     }
     sourceObj = Object.getPrototypeOf(sourceObj);
   } while (

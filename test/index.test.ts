@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import axios, { Axios, AxiosError } from "axios";
 import http from "http";
 import stream from "stream";
@@ -84,7 +85,11 @@ describe("Light my Request adapter with plain dispatch", () => {
   test("headers", async () => {
     dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ data: `Hello ${req.headers["x-name"]}!` }));
+      res.end(
+        JSON.stringify({
+          data: `Hello ${req.headers["x-name"] as string}!`,
+        })
+      );
     });
 
     const res = await instance.get("/", { headers: { "X-Name": "World" } });
@@ -96,7 +101,10 @@ describe("Light my Request adapter with plain dispatch", () => {
 
   test("params", async () => {
     dispatch.mockImplementationOnce((req, res) => {
-      const url = new URL(req.url!, `http://${req.headers.host}`);
+      const url = new URL(
+        req.url!,
+        `http://${req.headers.host ?? "undefined"}`
+      );
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({ data: `Hello ${url.searchParams.get("name") ?? ""}!` })
@@ -111,20 +119,22 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("data", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
-      const body: { name?: string } = JSON.parse(
-        await stream.promises.pipeline(req, async function (source) {
-          (source as stream.Readable).setEncoding("utf8");
-          const chunks = [];
-          for await (const chunk of source) {
-            chunks.push(chunk);
-          }
-          return chunks.join();
-        })
-      );
+    dispatch.mockImplementationOnce((req, res) => {
+      (async () => {
+        const body: { name?: string } = JSON.parse(
+          await stream.promises.pipeline(req, async function (source) {
+            (source as stream.Readable).setEncoding("utf8");
+            const chunks = [];
+            for await (const chunk of source) {
+              chunks.push(chunk);
+            }
+            return chunks.join();
+          })
+        );
 
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ data: `Hello ${body.name}!` }));
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: `Hello ${body.name ?? "undefined"}!` }));
+      })().catch((reason) => res.destroy(reason as Error));
     });
 
     const res = await instance.post("/", { name: "World" });
@@ -137,7 +147,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("auth", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ data: `Hello World!` }));
     });
@@ -161,7 +171,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("auth in URL", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ data: `Hello World!` }));
     });
@@ -183,7 +193,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("responseType arrayBuffer", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ data: `Hello World!` }));
     });
@@ -198,7 +208,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("responseType document", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ data: `Hello World!` }));
     });
@@ -213,7 +223,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("responseType text", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("Hello World!");
     });
@@ -228,7 +238,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("responseType stream", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("Hello World!");
     });
@@ -252,7 +262,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("maxContentLength", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("Hello World!");
     });
@@ -270,7 +280,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("Failed request", async () => {
-    dispatch.mockImplementationOnce(async (req, res) => {
+    dispatch.mockImplementationOnce((req, res) => {
       res.writeHead(500);
       res.end();
     });
@@ -361,7 +371,7 @@ describe("Light my Request adapter with plain dispatch", () => {
 test("fastify hello world", async () => {
   const app = fastify();
   app.get("/", async () => {
-    return { data: "Hello World!" };
+    return Promise.resolve({ data: "Hello World!" });
   });
 
   const instance = axios.create({

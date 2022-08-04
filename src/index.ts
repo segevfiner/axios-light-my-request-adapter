@@ -71,6 +71,7 @@ export function createLightMyRequestAdapter(
         done();
         rejectPromise(value);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const data = config.data;
       const headers = config.headers ?? {};
       const headerNames: Record<string, string> = {};
@@ -80,12 +81,14 @@ export function createLightMyRequestAdapter(
       });
 
       // support for https://www.npmjs.com/package/form-data api
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       if (utils.isFormData(data) && utils.isFunction(data.getHeaders)) {
         Object.assign(headers, data.getHeaders());
       } else if (data && !utils.isStream(data)) {
         if (
           config.maxBodyLength &&
           config.maxBodyLength > -1 &&
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           data.length > config.maxBodyLength
         ) {
           reject(
@@ -173,6 +176,7 @@ export function createLightMyRequestAdapter(
             | InjectOptions["method"]
             | undefined,
           headers: headers as http.OutgoingHttpHeaders,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           payload: config.data,
           server: opts.server,
           remoteAddress: opts.remoteAddress,
@@ -209,9 +213,7 @@ export function createLightMyRequestAdapter(
               // stream.destoy() emit aborted event before calling reject() on Node.js v16
               reject(
                 new AxiosError(
-                  "maxContentLength size of " +
-                    config.maxContentLength +
-                    " exceeded",
+                  `maxContentLength size of ${config.maxContentLength} exceeded`,
                   AxiosError.ERR_BAD_RESPONSE,
                   config,
                   res.raw.req
@@ -276,7 +278,7 @@ export function createLightMyRequestAdapter(
             };
             reject(
               new AxiosError(
-                "timeout of " + timeoutMs + "ms exceeded",
+                `timeout of ${timeoutMs} ms exceeded`,
                 transitional.clarifyTimeoutError
                   ? AxiosError.ETIMEDOUT
                   : AxiosError.ECONNABORTED,
