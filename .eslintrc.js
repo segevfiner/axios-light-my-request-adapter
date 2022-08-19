@@ -26,9 +26,5 @@ module.exports = {
   rules: {
     "@typescript-eslint/no-non-null-assertion": ["off"],
   },
-  ignorePatterns: [
-    "/dist/",
-    "/coverage/",
-    "/docs/"
-  ]
+  ignorePatterns: ["/dist/", "/coverage/", "/docs/"],
 };
