@@ -39,7 +39,7 @@ export function settle<T>(
   } else {
     reject(
       new AxiosError(
-        "Request failed with status code " + response.status,
+        `Request failed with status code ${response.status}`,
         [AxiosError.ERR_BAD_REQUEST, AxiosError.ERR_BAD_RESPONSE][
           Math.floor(response.status / 100) - 4
         ],

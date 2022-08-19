@@ -9,15 +9,11 @@ export function axiosErrorFrom(
   response?: AxiosResponse,
   customProps?: object
 ) {
-  const axiosError = Object.create(AxiosError.prototype);
+  const axiosError = Object.create(AxiosError.prototype) as AxiosError;
 
-  utils.toFlatObject(
-    error as unknown as Record<string, unknown>,
-    axiosError,
-    function filter(obj: object) {
-      return obj !== Error.prototype;
-    }
-  );
+  utils.toFlatObject(error, axiosError, function filter(obj) {
+    return obj !== Error.prototype;
+  });
 
   AxiosError.call(
     axiosError,
