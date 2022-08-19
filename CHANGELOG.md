@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Enabled ESLint rules that require type checking.
+
 ## 0.2.1 - 2022-07-22
 
 ### Changed
