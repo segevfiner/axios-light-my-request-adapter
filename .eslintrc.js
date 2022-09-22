@@ -8,7 +8,6 @@ module.exports = {
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:@typescript-eslint/recommended-requiring-type-checking",
-    "plugin:jest/recommended",
     "plugin:prettier/recommended",
   ],
   parser: "@typescript-eslint/parser",
@@ -27,4 +26,11 @@ module.exports = {
     "@typescript-eslint/no-non-null-assertion": ["off"],
   },
   ignorePatterns: ["/dist/", "/coverage/", "/docs/"],
+  overrides: {
+    "test/**": {
+      extends: [
+        "plugin:jest/recommended"
+      ]
+    }
+  }
 };
