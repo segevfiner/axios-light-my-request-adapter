@@ -26,7 +26,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/");
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
     expect(res.data).toStrictEqual({ data: "Hello World!" });
@@ -39,7 +39,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/hello");
-    expect(dispatch).toBeCalledWith(
+    expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ url: "/hello" }),
       expect.any(http.ServerResponse)
     );
@@ -55,7 +55,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.post("/");
-    expect(dispatch).toBeCalledWith(
+    expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ method: "POST" }),
       expect.any(http.ServerResponse)
     );
@@ -71,7 +71,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.post("/");
-    expect(dispatch).toBeCalledWith(
+    expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         headers: expect.objectContaining({ host: "localhost:80" }),
       }),
@@ -93,7 +93,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/", { headers: { "X-Name": "World" } });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
     expect(res.data).toStrictEqual({ data: "Hello World!" });
@@ -112,7 +112,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/", { params: { name: "World" } });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
     expect(res.data).toStrictEqual({ data: "Hello World!" });
@@ -138,7 +138,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.post("/", { name: "World" });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
       "content-type": "application/json",
@@ -155,7 +155,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     const res = await instance.get("/", {
       auth: { username: "test", password: "123456" },
     });
-    expect(dispatch).toBeCalledWith(
+    expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         headers: expect.objectContaining({
           authorization: "Basic dGVzdDoxMjM0NTY=",
@@ -177,7 +177,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("http://test:123456@localhost/");
-    expect(dispatch).toBeCalledWith(
+    expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         headers: expect.objectContaining({
           authorization: "Basic dGVzdDoxMjM0NTY=",
@@ -199,7 +199,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/", { responseType: "arraybuffer" });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
       "content-type": "application/json",
@@ -214,7 +214,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/", { responseType: "document" });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
       "content-type": "application/json",
@@ -229,7 +229,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/", { responseType: "text" });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
       "content-type": "text/plain",
@@ -244,7 +244,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     const res = await instance.get("/", { responseType: "stream" });
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
       "content-type": "text/plain",
@@ -270,7 +270,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     await expect(instance.get("/", { maxContentLength: 1 })).rejects.toThrow(
       AxiosError
     );
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   test("maxBodyLength", async () => {
@@ -286,7 +286,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     await expect(instance.get("/")).rejects.toThrow(AxiosError);
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   test("cancelToken", async () => {
@@ -303,7 +303,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     const promise = instance.get("/", { cancelToken: source.token });
     source.cancel();
     await expect(promise).rejects.toThrow(AxiosError);
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   test("signal", async () => {
@@ -320,7 +320,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     const promise = instance.get("/", { signal: controller.signal });
     controller.abort();
     await expect(promise).rejects.toThrow(AxiosError);
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   test("cancelToken and signal", async () => {
@@ -341,7 +341,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
     controller.abort();
     await expect(promise).rejects.toThrow(AxiosError);
-    expect(dispatch).toBeCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   test("timeout", async () => {
@@ -361,7 +361,7 @@ describe("Light my Request adapter with plain dispatch", () => {
       });
       jest.runAllTimers();
       await expect(promise).rejects.toThrow(AxiosError);
-      expect(dispatch).toBeCalledTimes(1);
+      expect(dispatch).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }

@@ -26,11 +26,10 @@ module.exports = {
     "@typescript-eslint/no-non-null-assertion": ["off"],
   },
   ignorePatterns: ["/dist/", "/coverage/", "/docs/"],
-  overrides: {
-    "test/**": {
-      extends: [
-        "plugin:jest/recommended"
-      ]
-    }
-  }
+  overrides: [
+    {
+      files: "test/**",
+      extends: ["plugin:jest/recommended"],
+    },
+  ],
 };
