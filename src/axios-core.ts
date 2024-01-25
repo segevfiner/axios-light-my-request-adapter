@@ -12,7 +12,7 @@ import { combineURLs, isAbsoluteURL } from "./axios-helpers";
  */
 export function buildFullPath(
   baseURL: string | undefined,
-  requestedURL: string
+  requestedURL: string,
 ): string {
   if (baseURL && !isAbsoluteURL(requestedURL)) {
     return combineURLs(baseURL, requestedURL);
@@ -30,7 +30,7 @@ export function buildFullPath(
 export function settle<T>(
   resolve: (value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>) => void,
   reject: (reason?: unknown) => void,
-  response: AxiosResponse
+  response: AxiosResponse,
 ) {
   const validateStatus = response.config.validateStatus;
   if (!response.status || !validateStatus || validateStatus(response.status)) {
@@ -45,8 +45,8 @@ export function settle<T>(
         ],
         response.config,
         response.request,
-        response
-      )
+        response,
+      ),
     );
   }
 }

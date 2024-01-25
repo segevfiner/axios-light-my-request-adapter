@@ -1,20 +1,24 @@
 import {
   AxiosAdapter,
   AxiosError,
+  AxiosHeaders,
   AxiosRequestConfig,
   AxiosResponse,
   AxiosResponseHeaders,
   Cancel,
   CanceledError,
+  InternalAxiosRequestConfig,
+  VERSION,
 } from "axios";
 import http from "http";
 import { DispatchFunc, inject, InjectOptions } from "light-my-request";
-import { Readable } from "stream";
+import stream from "stream";
 import url from "url";
 import { buildFullPath, settle } from "./axios-core";
 import { axiosErrorFrom } from "./axios-error";
 import { buildParams } from "./axios-helpers";
 import * as utils from "./axios-utils";
+import EventEmitter from "events";
 
 export interface LightMyRequestAdapterOptions {
   /** Optional http server. It is used for binding the `dispatchFunc` */
@@ -23,6 +27,49 @@ export interface LightMyRequestAdapterOptions {
   /** an optional string specifying the client remote address. Defaults to '127.0.0.1' */
   remoteAddress?: string;
 }
+
+const supportedProtocols = ["http", "https", "file", "data"].map((protocol) => {
+  return protocol + ":";
+});
+
+type DoneCb<T> = ((value: T | PromiseLike<T>, isRejected?: false) => void) &
+  ((reason: any, isRejected: true) => void);
+
+const wrapAsync = <T>(
+  asyncExecutor: (
+    resolve: (value: T | PromiseLike<T>) => void,
+    reject: (reason?: any) => void,
+    onDone: (cb: DoneCb<T>) => void,
+  ) => Promise<void>,
+): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    let onDone: DoneCb<T> | undefined;
+    let isDone: boolean;
+
+    const done: DoneCb<T> = (value, isRejected) => {
+      if (isDone) return;
+      isDone = true;
+      // @ts-ignore
+      onDone && onDone(value, isRejected);
+    };
+
+    const _resolve = (value: T | PromiseLike<T>) => {
+      done(value);
+      resolve(value);
+    };
+
+    const _reject = (reason?: any) => {
+      done(reason, true);
+      reject(reason);
+    };
+
+    asyncExecutor(
+      _resolve,
+      _reject,
+      (onDoneHandler: DoneCb<T>) => (onDone = onDoneHandler),
+    ).catch(_reject);
+  });
+};
 
 /**
  * Create an `AxiosAdapter` that will inject requests/responses into `dispatchFunc` via Light my
@@ -35,286 +82,217 @@ export interface LightMyRequestAdapterOptions {
  */
 export function createLightMyRequestAdapter(
   dispatchFunc: DispatchFunc,
-  opts: LightMyRequestAdapterOptions = {}
+  opts: LightMyRequestAdapterOptions = {},
 ): AxiosAdapter {
   return function lightMyRequestAdapter<T = unknown>(
-    config: AxiosRequestConfig
+    config: InternalAxiosRequestConfig,
   ): Promise<AxiosResponse<T>> {
-    return new Promise((resolvePromise, rejectPromise) => {
-      let onCanceled: (cancel?: MyCancel) => void;
-      let timeout: ReturnType<typeof setTimeout>;
-      function done() {
-        if (config.cancelToken) {
-          (config.cancelToken as unknown as MyCancelToken).unsubscribe(
-            onCanceled
-          );
-        }
+    return wrapAsync(
+      async function dispatchHttpRequest(resolve, reject, onDone) {
+        let { data, family } = config;
+        const { responseType, responseEncoding } = config;
+        const method = config.method!.toUpperCase();
+        let isDone;
+        let rejected = false;
+        let req;
 
-        if (config.signal) {
-          (config.signal as MyAbortSignal).removeEventListener(
-            "abort",
-            onCanceled
-          );
-        }
+        // temporary internal emitter until the AxiosRequest class will be implemented
+        const emitter = new EventEmitter();
 
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-      }
-      function resolve(
-        value: AxiosResponse<T> | PromiseLike<AxiosResponse<T>>
-      ) {
-        done();
-        resolvePromise(value);
-      }
-      function reject(value: unknown) {
-        done();
-        rejectPromise(value);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const data = config.data;
-      const headers = config.headers ?? {};
-      const headerNames: Record<string, string> = {};
-
-      Object.keys(headers).forEach(function storeLowerName(name) {
-        headerNames[name.toLowerCase()] = name;
-      });
-
-      // support for https://www.npmjs.com/package/form-data api
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      if (utils.isFormData(data) && utils.isFunction(data.getHeaders)) {
-        Object.assign(headers, data.getHeaders());
-      } else if (data && !utils.isStream(data)) {
-        if (
-          config.maxBodyLength &&
-          config.maxBodyLength > -1 &&
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          data.length > config.maxBodyLength
-        ) {
-          reject(
-            new AxiosError(
-              "Request body larger than maxBodyLength limit",
-              AxiosError.ERR_BAD_REQUEST,
-              config
-            )
-          );
-          return;
-        }
-      }
-
-      // HTTP basic authentication
-      let auth = undefined;
-      if (config.auth) {
-        const username = config.auth.username || "";
-        const password = config.auth.password || "";
-        auth = username + ":" + password;
-      }
-
-      // Parse url
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const fullPath = buildFullPath(config.baseURL, config.url!);
-      const parsed = url.parse(fullPath);
-
-      if (!auth && parsed.auth) {
-        const urlAuth = parsed.auth.split(":");
-        const urlUsername = urlAuth[0] || "";
-        const urlPassword = urlAuth[1] || "";
-        auth = urlUsername + ":" + urlPassword;
-      }
-
-      if (auth) {
-        if (headerNames.authorization) {
-          delete headers[headerNames.authorization];
-        }
-        headers.authorization = "Basic " + Buffer.from(auth).toString("base64");
-      }
-
-      try {
-        const params = buildParams(
-          config.params,
-          config.paramsSerializer
-        ).replace(/^\?/, "");
-        if (parsed.search != null) {
-          parsed.search += "&" + params;
-        } else {
-          parsed.search = params;
-        }
-      } catch (err) {
-        const customErr: Error & {
-          config?: AxiosRequestConfig;
-          url?: string;
-          exists?: boolean;
-        } = new Error((err as Error).message);
-        customErr.config = config;
-        customErr.url = config.url;
-        customErr.exists = true;
-        reject(customErr);
-        return;
-      }
-
-      if (config.maxRedirects != null) {
-        reject(new Error("maxRedirects not supported"));
-        return;
-      }
-
-      if (config.socketPath != null) {
-        reject(new Error("socketPath not supported"));
-        return;
-      }
-
-      if (config.proxy != null) {
-        reject(new Error("proxy not supported"));
-        return;
-      }
-
-      const controller = new AbortController();
-      inject(
-        dispatchFunc,
-        {
-          url: url.format(parsed),
-          method: config.method?.toUpperCase() as
-            | InjectOptions["method"]
-            | undefined,
-          headers: headers as http.OutgoingHttpHeaders,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          payload: config.data,
-          server: opts.server,
-          remoteAddress: opts.remoteAddress,
-          signal: controller.signal,
-        },
-        (err, res) => {
-          if (err) {
-            reject(axiosErrorFrom(err, null, config, res?.raw.req));
-            return;
+        const onFinished = () => {
+          if (config.cancelToken) {
+            (config.cancelToken as unknown as MyCancelToken).unsubscribe(abort);
           }
-
-          const response: AxiosResponse = {
-            status: res.statusCode,
-            statusText: res.statusMessage,
-            headers: res.headers as AxiosResponseHeaders,
-            config: config,
-            request: res.raw.req,
-            data: undefined,
-          };
-
-          if (config.responseType === "stream") {
-            const responseData = new Readable();
-            responseData.push(res.rawPayload);
-            responseData.push(null);
-            response.data = responseData;
-            settle(resolve, reject, response);
-          } else {
-            // make sure the content length is not over the maxContentLength if specified
-            if (
-              config.maxContentLength &&
-              config.maxContentLength > -1 &&
-              res.rawPayload.length > config.maxContentLength
-            ) {
-              // stream.destoy() emit aborted event before calling reject() on Node.js v16
-              reject(
-                new AxiosError(
-                  `maxContentLength size of ${config.maxContentLength} exceeded`,
-                  AxiosError.ERR_BAD_RESPONSE,
-                  config,
-                  res.raw.req
-                )
-              );
-              return;
-            }
-
-            try {
-              if (config.responseType === "arraybuffer") {
-                response.data = res.rawPayload;
-              } else {
-                let responseData = res.payload;
-                if (
-                  !config.responseEncoding ||
-                  config.responseEncoding === "utf8"
-                ) {
-                  responseData = utils.stripBOM(responseData);
-                }
-                response.data = responseData;
-              }
-            } catch (err) {
-              reject(
-                axiosErrorFrom(
-                  err as Error,
-                  null,
-                  config,
-                  response.request,
-                  response
-                )
-              );
-            }
-            settle(resolve, reject, response);
-          }
-        }
-      );
-
-      // Handle request timeout
-      if (config.timeout) {
-        let timeoutMs: number;
-        if (config.timeout) {
-          // This is forcing a int timeout to avoid problems if the `req` interface doesn't handle other types.
-          timeoutMs = parseInt(config.timeout as unknown as string, 10);
-
-          if (isNaN(timeoutMs)) {
-            reject(
-              new AxiosError(
-                "error trying to parse `config.timeout` to int",
-                AxiosError.ERR_BAD_OPTION_VALUE,
-                config
-                // req
-              )
+          if (config.signal) {
+            (config.signal as unknown as MyAbortSignal).removeEventListener(
+              "abort",
+              abort,
             );
-
-            return;
           }
-
-          timeout = setTimeout(function handleRequestTimeout() {
-            controller.abort();
-            const transitional = config.transitional || {
-              clarifyTimeoutError: false,
-            };
-            reject(
-              new AxiosError(
-                `timeout of ${timeoutMs} ms exceeded`,
-                transitional.clarifyTimeoutError
-                  ? AxiosError.ETIMEDOUT
-                  : AxiosError.ECONNABORTED,
-                config
-                // req
-              )
-            );
-          }, timeoutMs);
-        }
-      }
-
-      if (config.cancelToken || config.signal) {
-        // Handle cancellation
-        onCanceled = function (cancel?: MyCancel) {
-          if (controller.signal.aborted) return;
-
-          controller.abort();
-          reject(
-            !cancel || (cancel && cancel.type) ? new CanceledError() : cancel
-          );
+          emitter.removeAllListeners();
         };
 
-        config.cancelToken &&
-          (config.cancelToken as unknown as MyCancelToken).subscribe(
-            onCanceled
+        onDone((value, isRejected) => {
+          isDone = true;
+          if (isRejected) {
+            rejected = true;
+            onFinished();
+          }
+        });
+
+        function abort(reason?: any) {
+          emitter.emit(
+            "abort",
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            !reason || reason.type
+              ? // @ts-ignore
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                new CanceledError(undefined, config, req)
+              : reason,
           );
-        if (config.signal) {
-          config.signal.aborted
-            ? onCanceled()
-            : (config.signal as MyAbortSignal).addEventListener(
-                "abort",
-                onCanceled
-              );
         }
-      }
-    });
+
+        emitter.once("abort", reject);
+
+        if (config.cancelToken || config.signal) {
+          config.cancelToken &&
+            (config.cancelToken as unknown as MyCancelToken).subscribe(abort);
+          if (config.signal) {
+            config.signal.aborted
+              ? abort()
+              : (config.signal as unknown as MyAbortSignal).addEventListener(
+                  "abort",
+                  abort,
+                );
+          }
+        }
+
+        // Parse url
+        const fullPath = buildFullPath(config.baseURL, config.url!);
+        const parsed = new URL(fullPath, "http://localhost");
+        const protocol = parsed.protocol || supportedProtocols[0];
+
+        if (protocol === "data:") {
+          let convertedData: string | Buffer | stream.Readable;
+
+          if (method !== "GET") {
+            return settle(resolve, reject, {
+              status: 405,
+              statusText: "method not allowed",
+              headers: {},
+              config,
+              data: undefined,
+            });
+          }
+
+          try {
+            convertedData = fromDataURI(config.url, responseType === "blob", {
+              Blob: config.env && config.env.Blob,
+            });
+          } catch (err) {
+            throw axiosErrorFrom(
+              err as Error,
+              AxiosError.ERR_BAD_REQUEST,
+              config,
+            );
+          }
+
+          if (responseType === "text") {
+            convertedData = (convertedData as Buffer).toString(
+              responseEncoding as BufferEncoding,
+            );
+
+            if (!responseEncoding || responseEncoding === "utf8") {
+              convertedData = utils.stripBOM(convertedData);
+            }
+          } else if (responseType === "stream") {
+            convertedData = stream.Readable.from(convertedData);
+          }
+
+          return settle(resolve, reject, {
+            data: convertedData,
+            status: 200,
+            statusText: "OK",
+            headers: new AxiosHeaders(),
+            config,
+          });
+        }
+
+        if (supportedProtocols.indexOf(protocol) === -1) {
+          return reject(
+            new AxiosError(
+              "Unsupported protocol " + protocol,
+              AxiosError.ERR_BAD_REQUEST,
+              config,
+            ),
+          );
+        }
+
+        const headers = AxiosHeaders.from(config.headers).normalize(false);
+
+        // Set User-Agent (required by some servers)
+        // See https://github.com/axios/axios/issues/69
+        // User-Agent is specified; handle case where no UA header is desired
+        // Only set header if it hasn't been set in config
+        headers.set("User-Agent", "axios/" + VERSION, false);
+
+        const onDownloadProgress = config.onDownloadProgress;
+        const onUploadProgress = config.onUploadProgress;
+        const maxRate = config.maxRate;
+        let maxUploadRate = undefined;
+        let maxDownloadRate = undefined;
+
+        // support for spec compliant FormData objects
+        if (utils.isSpecCompliantForm(data)) {
+          const userBoundary = headers.getContentType(
+            /boundary=([-_\w\d]{10,70})/i,
+          );
+
+          data = formDataToStream(
+            data,
+            (formHeaders) => {
+              headers.set(formHeaders);
+            },
+            {
+              tag: `axios-${VERSION}-boundary`,
+              boundary: (userBoundary && userBoundary[1]) || undefined,
+            },
+          );
+          // support for https://www.npmjs.com/package/form-data api
+        } else if (
+          utils.isFormData(data) &&
+          utils.isFunction(data.getHeaders)
+        ) {
+          headers.set(data.getHeaders());
+
+          if (!headers.hasContentLength()) {
+            try {
+              const knownLength = await util
+                .promisify(data.getLength)
+                .call(data);
+              Number.isFinite(knownLength) &&
+                knownLength >= 0 &&
+                headers.setContentLength(knownLength);
+              /*eslint no-empty:0*/
+            } catch (e) {}
+          }
+        } else if (utils.isBlob(data)) {
+          data.size &&
+            headers.setContentType(data.type || "application/octet-stream");
+          headers.setContentLength(data.size || 0);
+          data = stream.Readable.from(readBlob(data));
+        } else if (data && !utils.isStream(data)) {
+          if (Buffer.isBuffer(data)) {
+            // Nothing to do...
+          } else if (utils.isArrayBuffer(data)) {
+            data = Buffer.from(new Uint8Array(data));
+          } else if (utils.isString(data)) {
+            data = Buffer.from(data, "utf-8");
+          } else {
+            return reject(
+              new AxiosError(
+                "Data after transformation must be a string, an ArrayBuffer, a Buffer, or a Stream",
+                AxiosError.ERR_BAD_REQUEST,
+                config,
+              ),
+            );
+          }
+
+          // Add Content-Length header if data exists
+          headers.setContentLength(data.length, false);
+
+          if (config.maxBodyLength > -1 && data.length > config.maxBodyLength) {
+            return reject(
+              new AxiosError(
+                "Request body larger than maxBodyLength limit",
+                AxiosError.ERR_BAD_REQUEST,
+                config,
+              ),
+            );
+          }
+        }
+      },
+    );
   };
 }
 
@@ -350,7 +328,7 @@ export interface FastifyInstance {
  */
 export function createLightMyRequestAdapterFromFastify(
   instance: FastifyInstance,
-  opts: LightMyRequestAdapterOptions = {}
+  opts: LightMyRequestAdapterOptions = {},
 ) {
   return createLightMyRequestAdapter((req, res) => {
     instance.ready((err) => {

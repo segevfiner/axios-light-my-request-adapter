@@ -1,13 +1,13 @@
-import { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
+import { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import * as utils from "./axios-utils";
 
 export function axiosErrorFrom(
   error: Error,
   code: string | null,
-  config: AxiosRequestConfig,
-  request: unknown,
+  config: InternalAxiosRequestConfig,
+  request?: unknown,
   response?: AxiosResponse,
-  customProps?: object
+  customProps?: object,
 ) {
   const axiosError = Object.create(AxiosError.prototype) as AxiosError;
 
@@ -21,7 +21,7 @@ export function axiosErrorFrom(
     code ?? undefined,
     config,
     request,
-    response
+    response,
   );
 
   axiosError.name = error.name;
