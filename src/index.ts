@@ -16,9 +16,10 @@ import stream from "stream";
 import url from "url";
 import { buildFullPath, settle } from "./axios-core";
 import { axiosErrorFrom } from "./axios-error";
-import { buildParams } from "./axios-helpers";
+import { buildParams, fromDataURI } from "./axios-helpers";
 import * as utils from "./axios-utils";
 import EventEmitter from "events";
+import { Blob } from "buffer";
 
 export interface LightMyRequestAdapterOptions {
   /** Optional http server. It is used for binding the `dispatchFunc` */
@@ -153,7 +154,7 @@ export function createLightMyRequestAdapter(
         const protocol = parsed.protocol || supportedProtocols[0];
 
         if (protocol === "data:") {
-          let convertedData: string | Buffer | stream.Readable;
+          let convertedData: string | Buffer | Blob | stream.Readable;
 
           if (method !== "GET") {
             return settle(resolve, reject, {
@@ -166,7 +167,9 @@ export function createLightMyRequestAdapter(
           }
 
           try {
-            convertedData = fromDataURI(config.url, responseType === "blob", {
+            convertedData = fromDataURI(config.url!, responseType === "blob", {
+              // @ts-ignore
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
               Blob: config.env && config.env.Blob,
             });
           } catch (err) {
@@ -186,6 +189,7 @@ export function createLightMyRequestAdapter(
               convertedData = utils.stripBOM(convertedData);
             }
           } else if (responseType === "stream") {
+            // @ts-ignore
             convertedData = stream.Readable.from(convertedData);
           }
 
@@ -291,6 +295,33 @@ export function createLightMyRequestAdapter(
             );
           }
         }
+
+        // TODO
+
+        const controller = new AbortController();
+        inject(
+          dispatchFunc,
+          {
+            url: url.format(parsed),
+            method: config.method?.toUpperCase() as
+              | InjectOptions["method"]
+              | undefined,
+            headers: headers as http.OutgoingHttpHeaders,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            payload: config.data,
+            server: opts.server,
+            remoteAddress: opts.remoteAddress,
+            signal: controller.signal,
+          },
+          (err, res) => {
+            if (err) {
+              reject(axiosErrorFrom(err, null, config, res?.raw.req));
+              return;
+            }
+
+            // TODO
+          },
+        );
       },
     );
   };

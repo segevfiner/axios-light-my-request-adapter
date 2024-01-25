@@ -1,95 +1,69 @@
+import { AxiosError } from "axios";
 import * as utils from "./axios-utils";
+import { Blob } from "buffer";
 
-// /**
-//  * Determines whether the specified URL is absolute
-//  *
-//  * @param {string} url The URL to test
-//  * @returns {boolean} True if the specified URL is absolute, otherwise false
-//  */
-// export function isAbsoluteURL(url: string): boolean {
-//   // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
-//   // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
-//   // by any combination of letters, digits, plus, period, or hyphen.
-//   return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url);
-// }
+const DATA_URL_PATTERN = /^(?:([^;]+);)?(?:[^;]+;)?(base64|),([\s\S]*)$/;
 
-// /**
-//  * Creates a new URL by combining the specified URLs
-//  *
-//  * @param {string} baseURL The base URL
-//  * @param {string} relativeURL The relative URL
-//  * @returns {string} The combined URL
-//  */
-// export function combineURLs(baseURL: string, relativeURL: string): string {
-//   return relativeURL
-//     ? baseURL.replace(/\/+$/, "") + "/" + relativeURL.replace(/^\/+/, "")
-//     : baseURL;
-// }
+function parseProtocol(url: string) {
+  const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
+  return (match && match[1]) || "";
+}
 
-// function encode(val: string | number | boolean): string {
-//   return encodeURIComponent(val)
-//     .replace(/%3A/gi, ":")
-//     .replace(/%24/g, "$")
-//     .replace(/%2C/gi, ",")
-//     .replace(/%20/g, "+")
-//     .replace(/%5B/gi, "[")
-//     .replace(/%5D/gi, "]");
-// }
+/**
+ * Parse data uri to a Buffer or Blob
+ *
+ * @param {String} uri
+ * @param {?Boolean} asBlob
+ * @param {?Object} options
+ * @param {?Function} options.Blob
+ *
+ * @returns {Buffer|Blob}
+ */
+export function fromDataURI(
+  uri: string,
+  asBlob: boolean,
+  options: { Blob?: typeof Blob },
+) {
+  const _Blob = (options && options.Blob) || Blob;
+  const protocol = parseProtocol(uri);
 
-// // Based buildURL from axios/helpers
-// /**
-//  * Build URL params
-//  *
-//  * @param {object} [params] The params to be appended
-//  * @returns {string} The formatted url
-//  */
-// export function buildParams(
-//   params: unknown,
-//   paramsSerializer?: (params: unknown) => string
-// ): string {
-//   if (!params) {
-//     return "";
-//   }
+  if (asBlob === undefined && _Blob) {
+    asBlob = true;
+  }
 
-//   let serializedParams;
-//   if (paramsSerializer) {
-//     serializedParams = paramsSerializer(params);
-//   } else if (utils.isURLSearchParams(params)) {
-//     serializedParams = params.toString();
-//   } else {
-//     const parts: string[] = [];
+  if (protocol === "data") {
+    uri = protocol.length ? uri.slice(protocol.length + 1) : uri;
 
-//     utils.forEach(
-//       params as Record<string, unknown>,
-//       function serialize(val, key) {
-//         if (val === null || typeof val === "undefined") {
-//           return;
-//         }
+    const match = DATA_URL_PATTERN.exec(uri);
 
-//         if (utils.isArray(val)) {
-//           key = key + "[]";
-//         } else {
-//           val = [val];
-//         }
+    if (!match) {
+      throw new AxiosError("Invalid URL", AxiosError.ERR_INVALID_URL);
+    }
 
-//         if (utils.isObject(val)) {
-//           utils.forEach(
-//             val as Record<string, Date | object | string | number | boolean>,
-//             function parseValue(v) {
-//               if (utils.isDate(v)) {
-//                 v = v.toISOString();
-//               } else if (utils.isObject(v)) {
-//                 v = JSON.stringify(v);
-//               }
-//               parts.push(encode(key) + "=" + encode(v));
-//             }
-//           );
-//         }
-//       }
-//     );
+    const mime = match[1];
+    const isBase64 = match[2];
+    const body = match[3];
+    const buffer = Buffer.from(
+      decodeURIComponent(body),
+      isBase64 ? "base64" : "utf8",
+    );
 
-//     serializedParams = parts.join("&");
-//   }
+    if (asBlob) {
+      if (!_Blob) {
+        throw new AxiosError(
+          "Blob is not supported",
+          AxiosError.ERR_NOT_SUPPORT,
+        );
+      }
 
-//   return serializedParams;
-// }
+      return new _Blob([buffer], { type: mime });
+    }
+
+    return buffer;
+  }
+
+  throw new AxiosError(
+    "Unsupported protocol " + protocol,
+    AxiosError.ERR_NOT_SUPPORT,
+  );
+}
