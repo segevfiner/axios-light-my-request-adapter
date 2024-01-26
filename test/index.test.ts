@@ -222,7 +222,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.headers).toMatchObject({
       "content-type": "application/json",
     });
-    expect(res.data).toStrictEqual({ data: "Hello World!" });
+    expect(res.data).toStrictEqual('{"data":"Hello World!"}');
   });
 
   test("responseType text", async () => {

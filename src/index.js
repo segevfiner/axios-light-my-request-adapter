@@ -1,7 +1,7 @@
 "use strict";
 
 import utils from "axios/unsafe/utils.js";
-import settle from "axios/unsafe/core/settle.js";
+import settle from "./settle.js";
 import buildFullPath from "axios/unsafe/core/buildFullPath.js";
 import buildURL from "axios/unsafe/helpers/buildURL.js";
 import AxiosTransformStream from "axios/unsafe/helpers/AxiosTransformStream.js";
@@ -367,7 +367,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
 
             if (res.raw.req.destroyed) return;
 
-            const streams = [stream.Readable.from([res.payload])];
+            const streams = [stream.Readable.from([Buffer.from(res.payload)])];
 
             const responseLength = +res.headers["content-length"];
 
