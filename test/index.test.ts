@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import axios, { Axios, AxiosError } from "axios";
 import http from "http";
