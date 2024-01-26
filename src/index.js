@@ -5,10 +5,7 @@ import settle from "axios/unsafe/core/settle.js";
 import buildFullPath from "axios/unsafe/core/buildFullPath.js";
 import buildURL from "axios/unsafe/helpers/buildURL.js";
 import AxiosTransformStream from "axios/unsafe/helpers/AxiosTransformStream.js";
-import http from "http";
-import https from "https";
 import util from "util";
-import followRedirects from "follow-redirects";
 import zlib from "zlib";
 import { AxiosError, AxiosHeaders, CanceledError, VERSION } from "axios";
 import fromDataURI from "axios/unsafe/helpers/fromDataURI.js";
@@ -17,9 +14,7 @@ import EventEmitter from "events";
 import formDataToStream from "axios/unsafe/helpers/formDataToStream.js";
 import readBlob from "axios/unsafe/helpers/readBlob.js";
 import ZlibHeaderTransformStream from "axios/unsafe/helpers/ZlibHeaderTransformStream.js";
-import callbackify from "axios/unsafe/helpers/callbackify.js";
 import inject from "light-my-request";
-import url from "url";
 
 const transitionalDefaults = {
   silentJSONParsing: true,
@@ -39,85 +34,9 @@ const brotliOptions = {
 
 const isBrotliSupported = utils.isFunction(zlib.createBrotliDecompress);
 
-const { http: httpFollow, https: httpsFollow } = followRedirects;
-
-const isHttps = /https:?/;
-
 const supportedProtocols = ["http", "https", "file", "data"].map((protocol) => {
   return protocol + ":";
 });
-
-/**
- * If the proxy or config beforeRedirects functions are defined, call them with the options
- * object.
- *
- * @param {Object<string, any>} options - The options object that was passed to the request.
- *
- * @returns {Object<string, any>}
- */
-function dispatchBeforeRedirect(options, responseDetails) {
-  if (options.beforeRedirects.proxy) {
-    options.beforeRedirects.proxy(options);
-  }
-  if (options.beforeRedirects.config) {
-    options.beforeRedirects.config(options, responseDetails);
-  }
-}
-
-/**
- * If the proxy or config afterRedirects functions are defined, call them with the options
- *
- * @param {http.ClientRequestArgs} options
- * @param {AxiosProxyConfig} configProxy configuration from Axios options object
- * @param {string} location
- *
- * @returns {http.ClientRequestArgs}
- */
-function setProxy(options, configProxy, location) {
-  let proxy = configProxy;
-  if (!proxy && proxy !== false) {
-    const proxyUrl = getProxyForUrl(location);
-    if (proxyUrl) {
-      proxy = new URL(proxyUrl);
-    }
-  }
-  if (proxy) {
-    // Basic proxy authorization
-    if (proxy.username) {
-      proxy.auth = (proxy.username || "") + ":" + (proxy.password || "");
-    }
-
-    if (proxy.auth) {
-      // Support proxy auth object form
-      if (proxy.auth.username || proxy.auth.password) {
-        proxy.auth =
-          (proxy.auth.username || "") + ":" + (proxy.auth.password || "");
-      }
-      const base64 = Buffer.from(proxy.auth, "utf8").toString("base64");
-      options.headers["Proxy-Authorization"] = "Basic " + base64;
-    }
-
-    options.headers.host =
-      options.hostname + (options.port ? ":" + options.port : "");
-    const proxyHost = proxy.hostname || proxy.host;
-    options.hostname = proxyHost;
-    // Replace 'host' since options is not a URL object
-    options.host = proxyHost;
-    options.port = proxy.port;
-    options.path = location;
-    if (proxy.protocol) {
-      options.protocol = proxy.protocol.includes(":")
-        ? proxy.protocol
-        : `${proxy.protocol}:`;
-    }
-  }
-
-  options.beforeRedirects.proxy = function beforeRedirect(redirectOptions) {
-    // Configure proxy for redirected request, passing the original config proxy to apply
-    // the exact same logic as if the redirected request was performed by axios directly.
-    setProxy(redirectOptions, configProxy, redirectOptions.href);
-  };
-}
 
 // temporary hotfix
 
@@ -150,50 +69,24 @@ const wrapAsync = (asyncExecutor) => {
   });
 };
 
-const resolveFamily = ({ address, family }) => {
-  if (!utils.isString(address)) {
-    throw TypeError("address must be a string");
-  }
-  return {
-    address,
-    family: family || (address.indexOf(".") < 0 ? 6 : 4),
-  };
-};
-
-const buildAddressEntry = (address, family) =>
-  resolveFamily(utils.isObject(address) ? address : { address, family });
-
+/**
+ * Create an `AxiosAdapter` that will inject requests/responses into `dispatchFunc` via Light my
+ * Request.
+ *
+ * @param dispatchFunc - Listener function. The same as you would pass to `http.createServer` when
+ *                       making a node HTTP server.
+ * @param opts - Additional options
+ * @returns An `AxiosAdapter`
+ */
 export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
   return function httpAdapter(config) {
     return wrapAsync(
       async function dispatchHttpRequest(resolve, reject, onDone) {
-        let { data, lookup, family } = config;
+        let { data } = config;
         const { responseType, responseEncoding } = config;
         const method = config.method.toUpperCase();
         let isDone;
         let rejected = false;
-
-        if (lookup) {
-          const _lookup = callbackify(lookup, (value) =>
-            utils.isArray(value) ? value : [value],
-          );
-          // hotfix to support opt.all option which is required for node 20.x
-          lookup = (hostname, opt, cb) => {
-            _lookup(hostname, opt, (err, arg0, arg1) => {
-              if (err) {
-                return cb(err);
-              }
-
-              const addresses = utils.isArray(arg0)
-                ? arg0.map((addr) => buildAddressEntry(addr))
-                : [buildAddressEntry(arg0, arg1)];
-
-              opt.all
-                ? cb(err, addresses)
-                : cb(err, addresses[0].address, addresses[0].family);
-            });
-          };
-        }
 
         // temporary internal emitter until the AxiosRequest class will be implemented
         const emitter = new EventEmitter();
@@ -423,12 +316,17 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
           auth = urlUsername + ":" + urlPassword;
         }
 
-        auth && headers.delete("authorization");
+        if (auth) {
+          headers.set(
+            "authorization",
+            "Basic " + Buffer.from(auth).toString("base64"),
+          );
+        }
 
-        let path;
+        let url;
 
         try {
-          path = buildURL(
+          url = buildURL(
             parsed.pathname + parsed.search,
             config.params,
             config.paramsSerializer,
@@ -447,82 +345,29 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
           false,
         );
 
-        const options = {
-          path,
-          method: method,
-          headers: headers.toJSON(),
-          agents: { http: config.httpAgent, https: config.httpsAgent },
-          auth,
-          protocol,
-          family,
-          beforeRedirect: dispatchBeforeRedirect,
-          beforeRedirects: {},
-        };
-
-        // cacheable-lookup integration hotfix
-        !utils.isUndefined(lookup) && (options.lookup = lookup);
-
-        if (config.socketPath) {
-          options.socketPath = config.socketPath;
-        } else {
-          options.hostname = parsed.hostname;
-          options.port = parsed.port;
-          setProxy(
-            options,
-            config.proxy,
-            protocol +
-              "//" +
-              parsed.hostname +
-              (parsed.port ? ":" + parsed.port : "") +
-              options.path,
-          );
-        }
-
-        let transport;
-        const isHttpsRequest = isHttps.test(options.protocol);
-        options.agent = isHttpsRequest ? config.httpsAgent : config.httpAgent;
-        if (config.transport) {
-          transport = config.transport;
-        } else if (config.maxRedirects === 0) {
-          transport = isHttpsRequest ? https : http;
-        } else {
-          if (config.maxRedirects) {
-            options.maxRedirects = config.maxRedirects;
-          }
-          if (config.beforeRedirect) {
-            options.beforeRedirects.config = config.beforeRedirect;
-          }
-          transport = isHttpsRequest ? httpsFollow : httpFollow;
-        }
-
-        if (config.maxBodyLength > -1) {
-          options.maxBodyLength = config.maxBodyLength;
-        } else {
-          // follow-redirects does not skip comparison, so it should always succeed for axios -1 unlimited
-          options.maxBodyLength = Infinity;
-        }
-
-        if (config.insecureHTTPParser) {
-          options.insecureHTTPParser = config.insecureHTTPParser;
-        }
-
         // Create the request
         const controller = new AbortController();
         inject(
           dispatchFunc,
           {
-            url: url.format(parsed),
-            method: config.method?.toUpperCase(),
+            url,
+            method,
+            authority: parsed.host,
             headers,
-            payload: config.data,
-            server: opts.server,
             remoteAddress: opts.remoteAddress,
+            payload: data,
+            server: opts.server,
             signal: controller.signal,
           },
           (err, res) => {
+            if (err) {
+              reject(AxiosError.from(err, null, config, res?.raw.req));
+              return;
+            }
+
             if (res.raw.req.destroyed) return;
 
-            const streams = [res];
+            const streams = [stream.Readable.from([res.payload])];
 
             const responseLength = +res.headers["content-length"];
 
@@ -545,7 +390,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
             }
 
             // decompress the response body transparently if required
-            let responseStream = res;
+            let responseStream = res.raw.res;
 
             // return the last request in case of redirects
             const lastRequest = res.raw.req;
@@ -726,7 +571,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
           // At this time, if we have a large number of request, nodejs will hang up some socket on background. and the number will up and up.
           // And then these socket which be hang up will devouring CPU little by little.
           // ClientRequest.setTimeout will be fired on the specify milliseconds, and can make sure that abort() will be fired after connect.
-          setTimeout(timeout, function handleRequestTimeout() {
+          setTimeout(function handleRequestTimeout() {
             if (isDone) return;
             let timeoutErrorMessage = config.timeout
               ? "timeout of " + config.timeout + "ms exceeded"
@@ -746,40 +591,48 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
               ),
             );
             abort();
-          });
+          }, timeout);
         }
 
-        // Send the request
-        // if (utils.isStream(data)) {
-        //   let ended = false;
-        //   let errored = false;
+        if (config.cancelToken || config.signal) {
+          // Handle cancellation
+          const onCanceled = (cancel) => {
+            if (controller.signal.aborted) return;
 
-        //   data.on("end", () => {
-        //     ended = true;
-        //   });
+            controller.abort();
+            reject(
+              !cancel || (cancel && cancel.type) ? new CanceledError() : cancel,
+            );
+          };
 
-        //   data.once("error", (err) => {
-        //     errored = true;
-        //     // req.destroy(err);
-        //   });
-
-        //   data.on("close", () => {
-        //     if (!ended && !errored) {
-        //       abort(
-        //         new CanceledError(
-        //           "Request stream has been aborted",
-        //           config,
-        //         //   req,
-        //         ),
-        //       );
-        //     }
-        //   });
-
-        //   data.pipe(req);
-        // } else {
-        //   req.end(data);
-        // }
+          config.cancelToken && config.cancelToken.subscribe(onCanceled);
+          if (config.signal) {
+            config.signal.aborted
+              ? onCanceled()
+              : config.signal.addEventListener("abort", onCanceled);
+          }
+        }
       },
     );
   };
+}
+
+/**
+ * Create an `AxiosAdapter` that will inject requests/responses into the Fastify `instance` via
+ * Light my Request.
+ *
+ * @param instance - A Fastify instance.
+ * @param opts - Additional options
+ * @returns An `AxiosAdapter`
+ */
+export function createLightMyRequestAdapterFromFastify(instance, opts = {}) {
+  return createLightMyRequestAdapter((req, res) => {
+    instance.ready((err) => {
+      if (err) {
+        res.emit("error", err);
+        return;
+      }
+      instance.routing(req, res);
+    });
+  }, opts);
 }

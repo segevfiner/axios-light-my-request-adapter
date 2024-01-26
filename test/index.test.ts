@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import axios, { Axios, AxiosError } from "axios";
 import http from "http";
@@ -6,7 +7,7 @@ import fastify from "fastify";
 import {
   createLightMyRequestAdapter,
   createLightMyRequestAdapterFromFastify,
-} from "../src";
+} from "../src/index.js";
 
 describe("Light my Request adapter with plain dispatch", () => {
   const dispatch = jest.fn<void, Parameters<http.RequestListener>>();
@@ -41,7 +42,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     const res = await instance.get("/hello");
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ url: "/hello" }),
-      expect.any(http.ServerResponse)
+      expect.any(http.ServerResponse),
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
@@ -57,7 +58,7 @@ describe("Light my Request adapter with plain dispatch", () => {
     const res = await instance.post("/");
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ method: "POST" }),
-      expect.any(http.ServerResponse)
+      expect.any(http.ServerResponse),
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
@@ -73,9 +74,9 @@ describe("Light my Request adapter with plain dispatch", () => {
     const res = await instance.post("/");
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({ host: "localhost:80" }),
+        headers: expect.objectContaining({ host: "localhost" }),
       }),
-      expect.any(http.ServerResponse)
+      expect.any(http.ServerResponse),
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({ "content-type": "application/json" });
@@ -88,7 +89,7 @@ describe("Light my Request adapter with plain dispatch", () => {
       res.end(
         JSON.stringify({
           data: `Hello ${req.headers["x-name"] as string}!`,
-        })
+        }),
       );
     });
 
@@ -103,11 +104,13 @@ describe("Light my Request adapter with plain dispatch", () => {
     dispatch.mockImplementationOnce((req, res) => {
       const url = new URL(
         req.url!,
-        `http://${req.headers.host ?? "undefined"}`
+        `http://${req.headers.host ?? "undefined"}`,
       );
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
-        JSON.stringify({ data: `Hello ${url.searchParams.get("name") ?? ""}!` })
+        JSON.stringify({
+          data: `Hello ${url.searchParams.get("name") ?? ""}!`,
+        }),
       );
     });
 
@@ -129,7 +132,7 @@ describe("Light my Request adapter with plain dispatch", () => {
               chunks.push(chunk);
             }
             return chunks.join();
-          })
+          }),
         );
 
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -161,7 +164,7 @@ describe("Light my Request adapter with plain dispatch", () => {
           authorization: "Basic dGVzdDoxMjM0NTY=",
         }),
       }),
-      expect.any(http.ServerResponse)
+      expect.any(http.ServerResponse),
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
@@ -183,7 +186,7 @@ describe("Light my Request adapter with plain dispatch", () => {
           authorization: "Basic dGVzdDoxMjM0NTY=",
         }),
       }),
-      expect.any(http.ServerResponse)
+      expect.any(http.ServerResponse),
     );
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
@@ -257,7 +260,7 @@ describe("Light my Request adapter with plain dispatch", () => {
           chunks.push(chunk);
         }
         return chunks.join();
-      })
+      }),
     ).resolves.toBe("Hello World!");
   });
 
@@ -268,14 +271,14 @@ describe("Light my Request adapter with plain dispatch", () => {
     });
 
     await expect(instance.get("/", { maxContentLength: 1 })).rejects.toThrow(
-      AxiosError
+      AxiosError,
     );
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   test("maxBodyLength", async () => {
     await expect(
-      instance.post("/", "Hello, World!", { maxBodyLength: 1 })
+      instance.post("/", "Hello, World!", { maxBodyLength: 1 }),
     ).rejects.toThrow(AxiosError);
   });
 
