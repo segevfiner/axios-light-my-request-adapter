@@ -1,6 +1,6 @@
 {
   "name": "axios-light-my-request-adapter",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Axios adapter for Light my Request",
   "type": "module",
   "main": "src/index.js",
