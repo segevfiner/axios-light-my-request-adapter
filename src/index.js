@@ -69,15 +69,6 @@ const wrapAsync = (asyncExecutor) => {
   });
 };
 
-/**
- * Create an `AxiosAdapter` that will inject requests/responses into `dispatchFunc` via Light my
- * Request.
- *
- * @param dispatchFunc - Listener function. The same as you would pass to `http.createServer` when
- *                       making a node HTTP server.
- * @param opts - Additional options
- * @returns An `AxiosAdapter`
- */
 export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
   return function httpAdapter(config) {
     return wrapAsync(
@@ -617,14 +608,6 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
   };
 }
 
-/**
- * Create an `AxiosAdapter` that will inject requests/responses into the Fastify `instance` via
- * Light my Request.
- *
- * @param instance - A Fastify instance.
- * @param opts - Additional options
- * @returns An `AxiosAdapter`
- */
 export function createLightMyRequestAdapterFromFastify(instance, opts = {}) {
   return createLightMyRequestAdapter((req, res) => {
     instance.ready((err) => {
