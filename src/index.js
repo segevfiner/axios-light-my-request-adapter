@@ -18,6 +18,8 @@ import formDataToStream from "axios/unsafe/helpers/formDataToStream.js";
 import readBlob from "axios/unsafe/helpers/readBlob.js";
 import ZlibHeaderTransformStream from "axios/unsafe/helpers/ZlibHeaderTransformStream.js";
 import callbackify from "axios/unsafe/helpers/callbackify.js";
+import inject from "light-my-request";
+import url from "url";
 
 const transitionalDefaults = {
   silentJSONParsing: true,
@@ -117,9 +119,6 @@ function setProxy(options, configProxy, location) {
   };
 }
 
-const isHttpAdapterSupported =
-  typeof process !== "undefined" && utils.kindOf(process) === "process";
-
 // temporary hotfix
 
 const wrapAsync = (asyncExecutor) => {
@@ -173,7 +172,6 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         const method = config.method.toUpperCase();
         let isDone;
         let rejected = false;
-        let req;
 
         if (lookup) {
           const _lookup = callbackify(lookup, (value) =>
@@ -223,9 +221,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         function abort(reason) {
           emitter.emit(
             "abort",
-            !reason || reason.type
-              ? new CanceledError(null, config, req)
-              : reason,
+            !reason || reason.type ? new CanceledError(null, config) : reason,
           );
         }
 
@@ -511,198 +507,200 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         }
 
         // Create the request
-        req = transport.request(options, function handleResponse(res) {
-          if (req.destroyed) return;
+        const controller = new AbortController();
+        inject(
+          dispatchFunc,
+          {
+            url: url.format(parsed),
+            method: config.method?.toUpperCase(),
+            headers,
+            payload: config.data,
+            server: opts.server,
+            remoteAddress: opts.remoteAddress,
+            signal: controller.signal,
+          },
+          (err, res) => {
+            if (res.raw.req.destroyed) return;
 
-          const streams = [res];
+            const streams = [res];
 
-          const responseLength = +res.headers["content-length"];
+            const responseLength = +res.headers["content-length"];
 
-          if (onDownloadProgress) {
-            const transformStream = new AxiosTransformStream({
-              length: utils.toFiniteNumber(responseLength),
-              maxRate: utils.toFiniteNumber(maxDownloadRate),
-            });
-
-            onDownloadProgress &&
-              transformStream.on("progress", (progress) => {
-                onDownloadProgress(
-                  Object.assign(progress, {
-                    download: true,
-                  }),
-                );
+            if (onDownloadProgress) {
+              const transformStream = new AxiosTransformStream({
+                length: utils.toFiniteNumber(responseLength),
+                maxRate: utils.toFiniteNumber(maxDownloadRate),
               });
 
-            streams.push(transformStream);
-          }
+              onDownloadProgress &&
+                transformStream.on("progress", (progress) => {
+                  onDownloadProgress(
+                    Object.assign(progress, {
+                      download: true,
+                    }),
+                  );
+                });
 
-          // decompress the response body transparently if required
-          let responseStream = res;
-
-          // return the last request in case of redirects
-          const lastRequest = res.req || req;
-
-          // if decompress disabled we should not decompress
-          if (config.decompress !== false && res.headers["content-encoding"]) {
-            // if no content, but headers still say that it is encoded,
-            // remove the header not confuse downstream operations
-            if (method === "HEAD" || res.statusCode === 204) {
-              delete res.headers["content-encoding"];
+              streams.push(transformStream);
             }
 
-            switch ((res.headers["content-encoding"] || "").toLowerCase()) {
-              /*eslint default-case:0*/
-              case "gzip":
-              case "x-gzip":
-              case "compress":
-              case "x-compress":
-                // add the unzipper to the body stream processing pipeline
-                streams.push(zlib.createUnzip(zlibOptions));
+            // decompress the response body transparently if required
+            let responseStream = res;
 
-                // remove the content-encoding in order to not confuse downstream operations
+            // return the last request in case of redirects
+            const lastRequest = res.raw.req;
+
+            // if decompress disabled we should not decompress
+            if (
+              config.decompress !== false &&
+              res.headers["content-encoding"]
+            ) {
+              // if no content, but headers still say that it is encoded,
+              // remove the header not confuse downstream operations
+              if (method === "HEAD" || res.statusCode === 204) {
                 delete res.headers["content-encoding"];
-                break;
-              case "deflate":
-                streams.push(new ZlibHeaderTransformStream());
+              }
 
-                // add the unzipper to the body stream processing pipeline
-                streams.push(zlib.createUnzip(zlibOptions));
+              switch ((res.headers["content-encoding"] || "").toLowerCase()) {
+                /*eslint default-case:0*/
+                case "gzip":
+                case "x-gzip":
+                case "compress":
+                case "x-compress":
+                  // add the unzipper to the body stream processing pipeline
+                  streams.push(zlib.createUnzip(zlibOptions));
 
-                // remove the content-encoding in order to not confuse downstream operations
-                delete res.headers["content-encoding"];
-                break;
-              case "br":
-                if (isBrotliSupported) {
-                  streams.push(zlib.createBrotliDecompress(brotliOptions));
+                  // remove the content-encoding in order to not confuse downstream operations
                   delete res.headers["content-encoding"];
-                }
-            }
-          }
+                  break;
+                case "deflate":
+                  streams.push(new ZlibHeaderTransformStream());
 
-          responseStream =
-            streams.length > 1
-              ? stream.pipeline(streams, utils.noop)
-              : streams[0];
+                  // add the unzipper to the body stream processing pipeline
+                  streams.push(zlib.createUnzip(zlibOptions));
 
-          const offListeners = stream.finished(responseStream, () => {
-            offListeners();
-            onFinished();
-          });
-
-          const response = {
-            status: res.statusCode,
-            statusText: res.statusMessage,
-            headers: new AxiosHeaders(res.headers),
-            config,
-            request: lastRequest,
-          };
-
-          if (responseType === "stream") {
-            response.data = responseStream;
-            settle(resolve, reject, response);
-          } else {
-            const responseBuffer = [];
-            let totalResponseBytes = 0;
-
-            responseStream.on("data", function handleStreamData(chunk) {
-              responseBuffer.push(chunk);
-              totalResponseBytes += chunk.length;
-
-              // make sure the content length is not over the maxContentLength if specified
-              if (
-                config.maxContentLength > -1 &&
-                totalResponseBytes > config.maxContentLength
-              ) {
-                // stream.destroy() emit aborted event before calling reject() on Node.js v16
-                rejected = true;
-                responseStream.destroy();
-                reject(
-                  new AxiosError(
-                    "maxContentLength size of " +
-                      config.maxContentLength +
-                      " exceeded",
-                    AxiosError.ERR_BAD_RESPONSE,
-                    config,
-                    lastRequest,
-                  ),
-                );
-              }
-            });
-
-            responseStream.on("aborted", function handlerStreamAborted() {
-              if (rejected) {
-                return;
-              }
-
-              const err = new AxiosError(
-                "maxContentLength size of " +
-                  config.maxContentLength +
-                  " exceeded",
-                AxiosError.ERR_BAD_RESPONSE,
-                config,
-                lastRequest,
-              );
-              responseStream.destroy(err);
-              reject(err);
-            });
-
-            responseStream.on("error", function handleStreamError(err) {
-              if (req.destroyed) return;
-              reject(AxiosError.from(err, null, config, lastRequest));
-            });
-
-            responseStream.on("end", function handleStreamEnd() {
-              try {
-                let responseData =
-                  responseBuffer.length === 1
-                    ? responseBuffer[0]
-                    : Buffer.concat(responseBuffer);
-                if (responseType !== "arraybuffer") {
-                  responseData = responseData.toString(responseEncoding);
-                  if (!responseEncoding || responseEncoding === "utf8") {
-                    responseData = utils.stripBOM(responseData);
+                  // remove the content-encoding in order to not confuse downstream operations
+                  delete res.headers["content-encoding"];
+                  break;
+                case "br":
+                  if (isBrotliSupported) {
+                    streams.push(zlib.createBrotliDecompress(brotliOptions));
+                    delete res.headers["content-encoding"];
                   }
-                }
-                response.data = responseData;
-              } catch (err) {
-                return reject(
-                  AxiosError.from(
-                    err,
-                    null,
-                    config,
-                    response.request,
-                    response,
-                  ),
-                );
               }
-              settle(resolve, reject, response);
-            });
-          }
-
-          emitter.once("abort", (err) => {
-            if (!responseStream.destroyed) {
-              responseStream.emit("error", err);
-              responseStream.destroy();
             }
-          });
-        });
+
+            responseStream =
+              streams.length > 1
+                ? stream.pipeline(streams, utils.noop)
+                : streams[0];
+
+            const offListeners = stream.finished(responseStream, () => {
+              offListeners();
+              onFinished();
+            });
+
+            const response = {
+              status: res.statusCode,
+              statusText: res.statusMessage,
+              headers: new AxiosHeaders(res.headers),
+              config,
+              request: lastRequest,
+            };
+
+            if (responseType === "stream") {
+              response.data = responseStream;
+              settle(resolve, reject, response);
+            } else {
+              const responseBuffer = [];
+              let totalResponseBytes = 0;
+
+              responseStream.on("data", function handleStreamData(chunk) {
+                responseBuffer.push(chunk);
+                totalResponseBytes += chunk.length;
+
+                // make sure the content length is not over the maxContentLength if specified
+                if (
+                  config.maxContentLength > -1 &&
+                  totalResponseBytes > config.maxContentLength
+                ) {
+                  // stream.destroy() emit aborted event before calling reject() on Node.js v16
+                  rejected = true;
+                  responseStream.destroy();
+                  reject(
+                    new AxiosError(
+                      "maxContentLength size of " +
+                        config.maxContentLength +
+                        " exceeded",
+                      AxiosError.ERR_BAD_RESPONSE,
+                      config,
+                      lastRequest,
+                    ),
+                  );
+                }
+              });
+
+              responseStream.on("aborted", function handlerStreamAborted() {
+                if (rejected) {
+                  return;
+                }
+
+                const err = new AxiosError(
+                  "maxContentLength size of " +
+                    config.maxContentLength +
+                    " exceeded",
+                  AxiosError.ERR_BAD_RESPONSE,
+                  config,
+                  lastRequest,
+                );
+                responseStream.destroy(err);
+                reject(err);
+              });
+
+              responseStream.on("error", function handleStreamError(err) {
+                if (res.raw.req.destroyed) return;
+                reject(AxiosError.from(err, null, config, lastRequest));
+              });
+
+              responseStream.on("end", function handleStreamEnd() {
+                try {
+                  let responseData =
+                    responseBuffer.length === 1
+                      ? responseBuffer[0]
+                      : Buffer.concat(responseBuffer);
+                  if (responseType !== "arraybuffer") {
+                    responseData = responseData.toString(responseEncoding);
+                    if (!responseEncoding || responseEncoding === "utf8") {
+                      responseData = utils.stripBOM(responseData);
+                    }
+                  }
+                  response.data = responseData;
+                } catch (err) {
+                  return reject(
+                    AxiosError.from(
+                      err,
+                      null,
+                      config,
+                      response.request,
+                      response,
+                    ),
+                  );
+                }
+                settle(resolve, reject, response);
+              });
+            }
+
+            emitter.once("abort", (err) => {
+              if (!responseStream.destroyed) {
+                responseStream.emit("error", err);
+                responseStream.destroy();
+              }
+            });
+          },
+        );
 
         emitter.once("abort", (err) => {
           reject(err);
-          req.destroy(err);
-        });
-
-        // Handle errors
-        req.on("error", function handleRequestError(err) {
-          // @todo remove
-          // if (req.aborted && err.code !== AxiosError.ERR_FR_TOO_MANY_REDIRECTS) return;
-          reject(AxiosError.from(err, null, config, req));
-        });
-
-        // set tcp keep alive to prevent drop connection by peer
-        req.on("socket", function handleRequestSocket(socket) {
-          // default interval of sending ack packet is 1 minute
-          socket.setKeepAlive(true, 1000 * 60);
         });
 
         // Handle request timeout
@@ -716,7 +714,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
                 "error trying to parse `config.timeout` to int",
                 AxiosError.ERR_BAD_OPTION_VALUE,
                 config,
-                req,
+                // res.raw.req,
               ),
             );
 
@@ -728,7 +726,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
           // At this time, if we have a large number of request, nodejs will hang up some socket on background. and the number will up and up.
           // And then these socket which be hang up will devouring CPU little by little.
           // ClientRequest.setTimeout will be fired on the specify milliseconds, and can make sure that abort() will be fired after connect.
-          req.setTimeout(timeout, function handleRequestTimeout() {
+          setTimeout(timeout, function handleRequestTimeout() {
             if (isDone) return;
             let timeoutErrorMessage = config.timeout
               ? "timeout of " + config.timeout + "ms exceeded"
@@ -744,7 +742,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
                   ? AxiosError.ETIMEDOUT
                   : AxiosError.ECONNABORTED,
                 config,
-                req,
+                // req,
               ),
             );
             abort();
@@ -752,35 +750,35 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         }
 
         // Send the request
-        if (utils.isStream(data)) {
-          let ended = false;
-          let errored = false;
+        // if (utils.isStream(data)) {
+        //   let ended = false;
+        //   let errored = false;
 
-          data.on("end", () => {
-            ended = true;
-          });
+        //   data.on("end", () => {
+        //     ended = true;
+        //   });
 
-          data.once("error", (err) => {
-            errored = true;
-            req.destroy(err);
-          });
+        //   data.once("error", (err) => {
+        //     errored = true;
+        //     // req.destroy(err);
+        //   });
 
-          data.on("close", () => {
-            if (!ended && !errored) {
-              abort(
-                new CanceledError(
-                  "Request stream has been aborted",
-                  config,
-                  req,
-                ),
-              );
-            }
-          });
+        //   data.on("close", () => {
+        //     if (!ended && !errored) {
+        //       abort(
+        //         new CanceledError(
+        //           "Request stream has been aborted",
+        //           config,
+        //         //   req,
+        //         ),
+        //       );
+        //     }
+        //   });
 
-          data.pipe(req);
-        } else {
-          req.end(data);
-        }
+        //   data.pipe(req);
+        // } else {
+        //   req.end(data);
+        // }
       },
     );
   };
