@@ -58,9 +58,9 @@ const instance = axios.create({
 
 ## Caveats
 
-- `maxRedirects`, `socketPath`, and `proxy` are not supported and will throw.
-- `decompress` is ignored as Light my Request doesn't support that cleanly. It wouldn't pass
-  `Accept-Encoding` by default anyhow.
+- `maxRedirects` is not supported https://github.com/fastify/light-my-request/issues/209, and will throw.
+- `socketPath` and `proxy` are not supported and will throw.
+- `httpAgent` & `httpsAgent` are ignored.
 
 ## License
 

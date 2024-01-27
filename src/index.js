@@ -79,6 +79,21 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         let isDone;
         let rejected = false;
 
+        if (config.maxRedirects != null) {
+          reject(new Error("maxRedirects not supported"));
+          return;
+        }
+
+        if (config.socketPath != null) {
+          reject(new Error("socketPath not supported"));
+          return;
+        }
+
+        if (config.proxy != null) {
+          reject(new Error("proxy not supported"));
+          return;
+        }
+
         // temporary internal emitter until the AxiosRequest class will be implemented
         const emitter = new EventEmitter();
 
@@ -358,7 +373,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
 
             if (res.raw.req.destroyed) return;
 
-            const streams = [stream.Readable.from([Buffer.from(res.payload)])];
+            const streams = [stream.Readable.from([res.rawPayload])];
 
             const responseLength = +res.headers["content-length"];
 

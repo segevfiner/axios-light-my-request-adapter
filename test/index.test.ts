@@ -2,15 +2,17 @@
 import axios, { Axios, AxiosError } from "axios";
 import http from "http";
 import stream from "stream";
+import util from "util";
 import fastify from "fastify";
 import {
   createLightMyRequestAdapter,
   createLightMyRequestAdapterFromFastify,
 } from "../src/index.js";
+import { brotliCompress, gzip } from "zlib";
 
 describe("Light my Request adapter with plain dispatch", () => {
   const dispatch = jest.fn<void, Parameters<http.RequestListener>>();
-  let instance: Axios;
+  let instance: InstanceType<typeof Axios>;
 
   beforeEach(() => {
     instance = axios.create({
@@ -279,6 +281,41 @@ describe("Light my Request adapter with plain dispatch", () => {
     await expect(
       instance.post("/", "Hello, World!", { maxBodyLength: 1 }),
     ).rejects.toThrow(AxiosError);
+  });
+
+  test("decompress gzip", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      const data = "Hello World!";
+      res.writeHead(200, {
+        "Content-Type": "text/plain",
+        "Content-Encoding": "gzip",
+      });
+      res.end(await util.promisify(gzip)(data));
+    });
+
+    const res = await instance.get("/");
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({ "content-type": "text/plain" });
+    expect(res.data).toStrictEqual("Hello World!");
+  });
+
+
+  test("decompress brotli", async () => {
+    dispatch.mockImplementationOnce(async (req, res) => {
+      const data = "Hello World!";
+      res.writeHead(200, {
+        "Content-Type": "text/plain",
+        "Content-Encoding": "br",
+      });
+      res.end(await util.promisify(brotliCompress)(data));
+    });
+
+    const res = await instance.get("/");
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(200);
+    expect(res.headers).toMatchObject({ "content-type": "text/plain" });
+    expect(res.data).toStrictEqual("Hello World!");
   });
 
   test("Failed request", async () => {
