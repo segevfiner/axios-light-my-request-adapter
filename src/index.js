@@ -78,6 +78,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         const method = config.method.toUpperCase();
         let isDone;
         let rejected = false;
+        let timeout;
 
         if (config.maxRedirects != null) {
           reject(new Error("maxRedirects not supported"));
@@ -107,6 +108,10 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
           }
 
           emitter.removeAllListeners();
+
+          if (timeout) {
+            clearTimeout(timeout);
+          }
         };
 
         onDone((value, isRejected) => {
@@ -557,7 +562,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         // Handle request timeout
         if (config.timeout) {
           // This is forcing a int timeout to avoid problems if the `req` interface doesn't handle other types.
-          const timeout = parseInt(config.timeout, 10);
+          timeout = parseInt(config.timeout, 10);
 
           if (Number.isNaN(timeout)) {
             reject(
