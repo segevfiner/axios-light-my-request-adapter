@@ -300,7 +300,6 @@ describe("Light my Request adapter with plain dispatch", () => {
     expect(res.data).toStrictEqual("Hello World!");
   });
 
-
   test("decompress brotli", async () => {
     dispatch.mockImplementationOnce(async (req, res) => {
       const data = "Hello World!";
