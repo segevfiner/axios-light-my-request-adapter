@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Enabled ESLint rules that require type checking.
+- **BREAKING** Upgraded to Axios v1.
 
 ## 0.2.1 - 2022-07-22
 

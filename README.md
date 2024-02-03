@@ -3,7 +3,7 @@
 [![CI](https://github.com/segevfiner/axios-light-my-request-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/segevfiner/axios-light-my-request-adapter/actions/workflows/ci.yml)
 [![Docs](https://github.com/segevfiner/axios-light-my-request-adapter/actions/workflows/docs.yml/badge.svg)](https://segevfiner.github.io/axios-light-my-request-adapter/)
 
-This can be used to wire an axios based client to a server during testing using Light my Request.
+This can be used to wire an Axios based client to a server during testing using Light my Request. Requires `axios@^1`.
 
 [Documentation](https://segevfiner.github.io/axios-light-my-request-adapter/)
 
@@ -58,9 +58,9 @@ const instance = axios.create({
 
 ## Caveats
 
-- `maxRedirects`, `socketPath`, and `proxy` are not supported and will throw.
-- `decompress` is ignored as Light my Request doesn't support that cleanly. It wouldn't pass
-  `Accept-Encoding` by default anyhow.
+- `maxRedirects` is not supported https://github.com/fastify/light-my-request/issues/209, and will throw.
+- `socketPath` and `proxy` are not supported and will throw.
+- `httpAgent` & `httpsAgent` are ignored.
 
 ## License
 
