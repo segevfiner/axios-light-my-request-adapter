@@ -16,7 +16,7 @@
     "lint:formatting": "pretter --check .",
     "format": "prettier --write .",
     "test": "vitest",
-    "docs": "typedoc"
+    "build-docs": "typedoc"
   },
   "repository": {
     "type": "git",
