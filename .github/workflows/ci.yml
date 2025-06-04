@@ -16,11 +16,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.1.0
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
-      - run: npm ci
-      - run: npm run lint -- --max-warnings=0
-      - run: npm test
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm lint -- --max-warnings=0
+      - run: pnpm test

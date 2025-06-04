@@ -30,11 +30,11 @@
     "url": "https://github.com/segevfiner/axios-light-my-request-adapter/issues"
   },
   "homepage": "https://github.com/segevfiner/axios-light-my-request-adapter#readme",
+  "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912",
   "engines": {
     "node": ">=16"
   },
   "dependencies": {
-    "axios": "^1.6.7",
     "light-my-request": "^5.11.0"
   },
   "devDependencies": {
@@ -54,5 +54,8 @@
     "ts-node": "^10.9.2",
     "typedoc": "^0.25.7",
     "typescript": "~5.3.3"
+  },
+  "peerDependencies": {
+    "axios": "^1"
   }
 }
