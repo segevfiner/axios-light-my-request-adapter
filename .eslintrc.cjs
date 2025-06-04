@@ -16,6 +16,7 @@ module.exports = {
   },
   plugins: ["@typescript-eslint"],
   rules: {
+    "@typescript-eslint/no-unsafe-assignment": "off",
     "@typescript-eslint/no-non-null-assertion": "off",
   },
   ignorePatterns: ["/dist/", "/coverage/", "/docs/"],

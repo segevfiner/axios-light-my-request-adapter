@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import axios, { Axios, AxiosError } from "axios";
 import http from "http";
 import stream from "stream";
@@ -11,7 +11,7 @@ import {
 import { brotliCompress, gzip } from "zlib";
 
 describe("Light my Request adapter with plain dispatch", () => {
-  const dispatch = jest.fn<void, Parameters<http.RequestListener>>();
+  const dispatch = vi.fn<http.RequestListener>();
   let instance: InstanceType<typeof Axios>;
 
   beforeEach(() => {
@@ -383,7 +383,7 @@ describe("Light my Request adapter with plain dispatch", () => {
   });
 
   test("timeout", async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     try {
       dispatch.mockImplementationOnce((req, res) => {
         const timeout = setTimeout(() => {
@@ -397,11 +397,11 @@ describe("Light my Request adapter with plain dispatch", () => {
       const promise = instance.get("/", {
         timeout: 1000,
       });
-      jest.runAllTimers();
+      vi.runAllTimers();
       await expect(promise).rejects.toThrow(AxiosError);
       expect(dispatch).toHaveBeenCalledTimes(1);
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 });

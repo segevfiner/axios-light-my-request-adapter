@@ -1,13 +1,14 @@
 {
-  "extends": "@tsconfig/node16/tsconfig.json",
-  "include": ["src/**/*"],
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    "allowJs": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "sourceMap": true,
-    "types": ["node"]
-  }
+    "files": [],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "./tsconfig.vitest.json"
+        },
+        {
+            "path": "./tsconfig.config.json"
+        }
+    ],
 }

@@ -240,7 +240,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
                 knownLength >= 0 &&
                 headers.setContentLength(knownLength);
               /*eslint no-empty:0*/
-            } catch (e) {}
+            } catch {}
           }
         } else if (utils.isBlob(data)) {
           data.size &&
