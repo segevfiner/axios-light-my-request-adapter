@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2025-06-5
+
+### Changed
+
+- Dropped Node.js <=18 support.
+
 ## 0.3.0 - 2024-02-04
 
 ### Changed
