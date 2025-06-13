@@ -39,20 +39,20 @@
     "url": "https://github.com/segevfiner/axios-light-my-request-adapter/issues"
   },
   "homepage": "https://github.com/segevfiner/axios-light-my-request-adapter#readme",
-  "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912",
+  "packageManager": "pnpm@10.12.1+sha512.f0dda8580f0ee9481c5c79a1d927b9164f2c478e90992ad268bbb2465a736984391d6333d2c327913578b2804af33474ca554ba29c04a8b13060a717675ae3ac",
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "light-my-request": "^6.6.0",
-    "vitest": "^3.2.1"
+    "vitest": "^3.2.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.28.0",
+    "@eslint/js": "^9.29.0",
     "@tsconfig/node20": "^20.1.5",
-    "@types/node": "^20.17.57",
-    "@vitest/eslint-plugin": "^1.2.1",
-    "eslint": "^9.28.0",
+    "@types/node": "^20.19.0",
+    "@vitest/eslint-plugin": "^1.2.4",
+    "eslint": "^9.29.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.1",
     "fastify": "^4.29.1",
@@ -60,7 +60,7 @@
     "prettier": "^3.5.3",
     "typedoc": "^0.28.5",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.33.1"
+    "typescript-eslint": "^8.34.0"
   },
   "peerDependencies": {
     "axios": "^1",
