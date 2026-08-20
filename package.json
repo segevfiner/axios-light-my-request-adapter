@@ -1,6 +1,6 @@
 {
   "name": "axios-light-my-request-adapter",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Axios adapter for Light my Request",
   "type": "module",
   "main": "src/index.js",
@@ -39,28 +39,28 @@
     "url": "https://github.com/segevfiner/axios-light-my-request-adapter/issues"
   },
   "homepage": "https://github.com/segevfiner/axios-light-my-request-adapter#readme",
-  "packageManager": "pnpm@10.30.1+sha512.3590e550d5384caa39bd5c7c739f72270234b2f6059e13018f975c313b1eb9fefcc09714048765d4d9efe961382c312e624572c0420762bdc5d5940cdf9be73a",
+  "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621",
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "light-my-request": "^6.6.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.11"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.3",
-    "@tsconfig/node20": "^20.1.9",
-    "@types/node": "^20.19.33",
-    "@vitest/eslint-plugin": "^1.6.9",
-    "eslint": "^9.39.3",
+    "@eslint/js": "^10.0.1",
+    "@tsconfig/node20": "^20.1.10",
+    "@types/node": "^20.19.43",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-prettier": "^5.5.6",
     "fastify": "^4.29.1",
-    "globals": "^16.5.0",
-    "prettier": "^3.8.1",
-    "typedoc": "^0.28.17",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.56.0"
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6",
+    "typedoc": "^0.28.20",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.67.0"
   },
   "peerDependencies": {
     "axios": "^1",

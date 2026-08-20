@@ -205,6 +205,7 @@ export function createLightMyRequestAdapter(dispatchFunc, opts = {}) {
         const onDownloadProgress = config.onDownloadProgress;
         const onUploadProgress = config.onUploadProgress;
         const maxRate = config.maxRate;
+        // eslint-disable-next-line no-useless-assignment -- From upstream
         let maxUploadRate = undefined;
         let maxDownloadRate = undefined;
 
